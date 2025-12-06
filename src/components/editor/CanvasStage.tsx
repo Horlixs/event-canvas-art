@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useCallback } from 'react';
-import { Stage, Layer, Rect, Transformer } from 'react-konva';
+import { Stage, Layer, Rect, Transformer, Image as KonvaImage } from 'react-konva';
 import Konva from 'konva';
+import useImage from 'use-image';
 import { CanvasElement } from '@/types/editor';
 import { ShapeRenderer } from './ShapeRenderer';
 
@@ -11,6 +12,7 @@ interface CanvasStageProps {
   onUpdate: (id: string, updates: Partial<CanvasElement>) => void;
   canvasSize: { width: number; height: number };
   backgroundColor: string;
+  backgroundImage?: string | null;
   stageRef: React.RefObject<Konva.Stage>;
   userImage?: string;
   isGeneratorMode?: boolean;
@@ -23,6 +25,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   onUpdate,
   canvasSize,
   backgroundColor,
+  backgroundImage,
   stageRef,
   userImage,
   isGeneratorMode = false,
@@ -30,6 +33,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const transformerRef = useRef<Konva.Transformer>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = React.useState(1);
+  const [bgImage] = useImage(backgroundImage || '', 'anonymous');
 
   // Calculate scale to fit canvas in container
   useEffect(() => {
@@ -122,7 +126,7 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           onTap={handleStageClick}
         >
           <Layer>
-            {/* Background */}
+            {/* Background Color */}
             <Rect
               name="background"
               x={0}
@@ -131,6 +135,18 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               height={canvasSize.height}
               fill={backgroundColor}
             />
+            
+            {/* Background Image */}
+            {bgImage && (
+              <KonvaImage
+                name="background-image"
+                image={bgImage}
+                x={0}
+                y={0}
+                width={canvasSize.width}
+                height={canvasSize.height}
+              />
+            )}
 
             {/* Elements */}
             {elements.map((element) => (

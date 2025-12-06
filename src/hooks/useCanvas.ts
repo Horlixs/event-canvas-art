@@ -8,6 +8,7 @@ export const useCanvas = () => {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [canvasSize] = useState({ width: 1080, height: 1080 });
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
 
   const addElement = useCallback((type: ShapeType) => {
     const baseProps = {
@@ -138,13 +139,17 @@ export const useCanvas = () => {
       height: canvasSize.height,
       elements,
       backgroundColor,
+      backgroundImage,
     };
-  }, [elements, canvasSize, backgroundColor]);
+  }, [elements, canvasSize, backgroundColor, backgroundImage]);
 
-  const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string }) => {
+  const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null }) => {
     setElements(template.elements);
     if (template.backgroundColor) {
       setBackgroundColor(template.backgroundColor);
+    }
+    if (template.backgroundImage !== undefined) {
+      setBackgroundImage(template.backgroundImage);
     }
     setSelectedId(null);
   }, []);
@@ -156,6 +161,8 @@ export const useCanvas = () => {
     canvasSize,
     backgroundColor,
     setBackgroundColor,
+    backgroundImage,
+    setBackgroundImage,
     addElement,
     updateElement,
     deleteElement,
