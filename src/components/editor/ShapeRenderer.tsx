@@ -1,0 +1,184 @@
+import React from 'react';
+import { Rect, Circle, RegularPolygon, Text, Group, Line } from 'react-konva';
+import { CanvasElement } from '@/types/editor';
+import useImage from 'use-image';
+import Konva from 'konva';
+
+interface ShapeRendererProps {
+  element: CanvasElement;
+  isSelected: boolean;
+  onSelect: () => void;
+  onChange: (updates: Partial<CanvasElement>) => void;
+  userImage?: string;
+  isGeneratorMode?: boolean;
+}
+
+const PlaceholderIcon: React.FC<{ x: number; y: number; size: number }> = ({ x, y, size }) => {
+  const iconSize = Math.min(size * 0.3, 60);
+  const strokeWidth = 2;
+  
+  return (
+    <Group x={x} y={y}>
+      {/* Upload arrow icon */}
+      <Line
+        points={[0, iconSize * 0.3, 0, -iconSize * 0.3]}
+        stroke="#9ca3af"
+        strokeWidth={strokeWidth}
+        lineCap="round"
+      />
+      <Line
+        points={[-iconSize * 0.2, -iconSize * 0.1, 0, -iconSize * 0.3, iconSize * 0.2, -iconSize * 0.1]}
+        stroke="#9ca3af"
+        strokeWidth={strokeWidth}
+        lineCap="round"
+        lineJoin="round"
+      />
+      {/* Base line */}
+      <Line
+        points={[-iconSize * 0.3, iconSize * 0.4, iconSize * 0.3, iconSize * 0.4]}
+        stroke="#9ca3af"
+        strokeWidth={strokeWidth}
+        lineCap="round"
+      />
+    </Group>
+  );
+};
+
+export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
+  element,
+  isSelected,
+  onSelect,
+  onChange,
+  userImage,
+  isGeneratorMode = false,
+}) => {
+  const [image] = useImage(userImage || '', 'anonymous');
+
+  const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    onChange({
+      x: e.target.x(),
+      y: e.target.y(),
+    });
+  };
+
+  const commonProps = {
+    x: element.x,
+    y: element.y,
+    rotation: element.rotation,
+    draggable: !isGeneratorMode,
+    onClick: onSelect,
+    onTap: onSelect,
+    onDragEnd: handleDragEnd,
+  };
+
+  const renderPlaceholderOverlay = (centerX: number, centerY: number, size: number) => {
+    if (!element.isPlaceholder || isGeneratorMode) return null;
+    return <PlaceholderIcon x={centerX} y={centerY} size={size} />;
+  };
+
+  const getFillPattern = () => {
+    if (element.isPlaceholder && isGeneratorMode && image) {
+      return undefined; // We'll use fillPatternImage instead
+    }
+    if (element.type === 'text') return element.fill;
+    return element.fill;
+  };
+
+  switch (element.type) {
+    case 'rect': {
+      const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
+      
+      return (
+        <Group>
+          <Rect
+            {...commonProps}
+            width={element.width}
+            height={element.height}
+            offsetX={element.width / 2}
+            offsetY={element.height / 2}
+            cornerRadius={element.cornerRadius}
+            fill={shouldUseImage ? undefined : element.fill}
+            fillPatternImage={shouldUseImage ? image : undefined}
+            fillPatternScaleX={shouldUseImage ? element.width / image.width : 1}
+            fillPatternScaleY={shouldUseImage ? element.height / image.height : 1}
+            fillPatternOffsetX={shouldUseImage ? element.width / 2 : 0}
+            fillPatternOffsetY={shouldUseImage ? element.height / 2 : 0}
+            stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
+            strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
+            dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
+            name="element"
+            id={element.id}
+          />
+          {renderPlaceholderOverlay(element.x, element.y, Math.min(element.width, element.height))}
+        </Group>
+      );
+    }
+
+    case 'circle': {
+      const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
+      
+      return (
+        <Group>
+          <Circle
+            {...commonProps}
+            radius={element.radius}
+            fill={shouldUseImage ? undefined : element.fill}
+            fillPatternImage={shouldUseImage ? image : undefined}
+            fillPatternScaleX={shouldUseImage ? (element.radius * 2) / image.width : 1}
+            fillPatternScaleY={shouldUseImage ? (element.radius * 2) / image.height : 1}
+            fillPatternOffsetX={shouldUseImage ? element.radius : 0}
+            fillPatternOffsetY={shouldUseImage ? element.radius : 0}
+            stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
+            strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
+            dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
+            name="element"
+            id={element.id}
+          />
+          {renderPlaceholderOverlay(element.x, element.y, element.radius * 2)}
+        </Group>
+      );
+    }
+
+    case 'polygon': {
+      const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
+      
+      return (
+        <Group>
+          <RegularPolygon
+            {...commonProps}
+            sides={element.sides}
+            radius={element.radius}
+            fill={shouldUseImage ? undefined : element.fill}
+            fillPatternImage={shouldUseImage ? image : undefined}
+            fillPatternScaleX={shouldUseImage ? (element.radius * 2) / image.width : 1}
+            fillPatternScaleY={shouldUseImage ? (element.radius * 2) / image.height : 1}
+            stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
+            strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
+            dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
+            name="element"
+            id={element.id}
+          />
+          {renderPlaceholderOverlay(element.x, element.y, element.radius * 2)}
+        </Group>
+      );
+    }
+
+    case 'text':
+      return (
+        <Text
+          {...commonProps}
+          text={element.text}
+          fontSize={element.fontSize}
+          fontFamily={element.fontFamily}
+          fill={element.fill}
+          stroke={element.stroke}
+          strokeWidth={element.strokeWidth}
+          name="element"
+          id={element.id}
+        />
+      );
+
+    default:
+      return null;
+  }
+};
