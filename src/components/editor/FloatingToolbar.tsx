@@ -5,26 +5,23 @@ import {
   Circle, 
   Hexagon, 
   Type, 
-  Download, 
-  Save,
+  Share2,
   Trash2,
   Copy,
   ChevronUp,
   ChevronDown,
-  Upload
 } from 'lucide-react';
 import { ShapeType } from '@/types/editor';
 
 interface FloatingToolbarProps {
   onAddElement: (type: ShapeType) => void;
-  onExport: () => void;
-  onSave: () => void;
+  onPublish: () => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
   onMoveUp?: () => void;
   onMoveDown?: () => void;
   hasSelection: boolean;
-  onImport: () => void;
+  isPublishing?: boolean;
 }
 
 interface ToolButtonProps {
@@ -68,14 +65,13 @@ const Divider = () => (
 
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
   onAddElement,
-  onExport,
-  onSave,
+  onPublish,
   onDelete,
   onDuplicate,
   onMoveUp,
   onMoveDown,
   hasSelection,
-  onImport,
+  isPublishing = false,
 }) => {
   return (
     <motion.div
@@ -137,22 +133,13 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 
       <Divider />
 
-      {/* File Tools */}
+      {/* Publish */}
       <ToolButton
-        icon={<Upload size={18} strokeWidth={1.5} />}
-        label="Import Template"
-        onClick={onImport}
-      />
-      <ToolButton
-        icon={<Save size={18} strokeWidth={1.5} />}
-        label="Save Template"
-        onClick={onSave}
-      />
-      <ToolButton
-        icon={<Download size={18} strokeWidth={1.5} />}
-        label="Export PNG"
-        onClick={onExport}
+        icon={<Share2 size={18} strokeWidth={1.5} />}
+        label="Publish & Get Link"
+        onClick={onPublish}
         variant="primary"
+        disabled={isPublishing}
       />
     </motion.div>
   );

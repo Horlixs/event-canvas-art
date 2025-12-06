@@ -1,16 +1,19 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useState } from 'react';
 import Konva from 'konva';
 import { useCanvas } from '@/hooks/useCanvas';
 import { CanvasStage } from './CanvasStage';
 import { FloatingToolbar } from './FloatingToolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { toast } from 'sonner';
-import { ImagePlus, X } from 'lucide-react';
+import { ImagePlus, X, Link as LinkIcon, Copy } from 'lucide-react';
+import { publishTemplate } from '@/lib/templates';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export const Editor: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
 
   const {
     elements,
@@ -29,67 +32,42 @@ export const Editor: React.FC = () => {
     getSelectedElement,
     clearSelection,
     exportTemplate,
-    importTemplate,
   } = useCanvas();
 
   const selectedElement = getSelectedElement();
 
-  const handleExportPNG = useCallback(() => {
-    if (!stageRef.current) return;
+  const handlePublish = useCallback(async () => {
+    if (elements.length === 0) {
+      toast.error('Add some elements before publishing');
+      return;
+    }
 
-    // Deselect to hide transformer
-    clearSelection();
-
-    setTimeout(() => {
-      const uri = stageRef.current?.toDataURL({ pixelRatio: 2 });
-      if (uri) {
-        const link = document.createElement('a');
-        link.download = 'event-dp.png';
-        link.href = uri;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        toast.success('Image exported successfully!');
+    setIsPublishing(true);
+    try {
+      const template = exportTemplate();
+      const result = await publishTemplate(template);
+      
+      if (result) {
+        const url = `${window.location.origin}/dp/${result.slug}`;
+        setPublishedUrl(url);
+        toast.success('Template published! Share the link with users.');
+      } else {
+        toast.error('Failed to publish template');
       }
-    }, 100);
-  }, [clearSelection]);
+    } catch (error) {
+      console.error('Publish error:', error);
+      toast.error('Failed to publish template');
+    } finally {
+      setIsPublishing(false);
+    }
+  }, [elements, exportTemplate]);
 
-  const handleSaveTemplate = useCallback(() => {
-    const template = exportTemplate();
-    const json = JSON.stringify(template, null, 2);
-    const blob = new Blob([json], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.download = 'template.json';
-    link.href = url;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-    toast.success('Template saved!');
-  }, [exportTemplate]);
-
-  const handleImportTemplate = useCallback(() => {
-    fileInputRef.current?.click();
-  }, []);
-
-  const handleFileChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      try {
-        const template = JSON.parse(event.target?.result as string);
-        importTemplate(template);
-        toast.success('Template imported!');
-      } catch {
-        toast.error('Invalid template file');
-      }
-    };
-    reader.readAsText(file);
-    e.target.value = '';
-  }, [importTemplate]);
+  const handleCopyUrl = useCallback(() => {
+    if (publishedUrl) {
+      navigator.clipboard.writeText(publishedUrl);
+      toast.success('Link copied to clipboard!');
+    }
+  }, [publishedUrl]);
 
   const handleBackgroundImageUpload = useCallback(() => {
     bgImageInputRef.current?.click();
@@ -143,6 +121,7 @@ export const Editor: React.FC = () => {
       }
       if (e.key === 'Escape') {
         clearSelection();
+        setPublishedUrl(null);
       }
     };
 
@@ -236,29 +215,78 @@ export const Editor: React.FC = () => {
         />
       </div>
 
+      {/* Published URL Modal */}
+      <AnimatePresence>
+        {publishedUrl && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm"
+            onClick={() => setPublishedUrl(null)}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-background border border-border rounded-2xl p-6 shadow-elevated max-w-md w-full mx-4"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <LinkIcon className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="font-semibold">Template Published!</h2>
+                  <p className="text-sm text-muted-foreground">Share this link with users</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 p-3 bg-secondary/50 rounded-xl border border-border">
+                <input
+                  type="text"
+                  value={publishedUrl}
+                  readOnly
+                  className="flex-1 bg-transparent text-sm text-foreground outline-none"
+                />
+                <button
+                  onClick={handleCopyUrl}
+                  className="p-2 rounded-lg hover:bg-background transition-colors"
+                >
+                  <Copy className="w-4 h-4 text-muted-foreground" />
+                </button>
+              </div>
+
+              <p className="text-xs text-muted-foreground mt-3">
+                Users can visit this link to upload their photo and download the DP.
+              </p>
+
+              <button
+                onClick={() => setPublishedUrl(null)}
+                className="w-full mt-4 py-2.5 rounded-xl bg-primary text-primary-foreground font-medium text-sm hover:bg-primary/90 transition-colors"
+              >
+                Done
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Floating Toolbar */}
       <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
         <FloatingToolbar
           onAddElement={addElement}
-          onExport={handleExportPNG}
-          onSave={handleSaveTemplate}
+          onPublish={handlePublish}
           onDelete={handleDelete}
           onDuplicate={handleDuplicate}
           onMoveUp={() => selectedId && moveElement(selectedId, 'up')}
           onMoveDown={() => selectedId && moveElement(selectedId, 'down')}
           hasSelection={!!selectedId}
-          onImport={handleImportTemplate}
+          isPublishing={isPublishing}
         />
       </div>
 
       {/* Hidden file inputs */}
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept=".json"
-        onChange={handleFileChange}
-        className="hidden"
-      />
       <input
         ref={bgImageInputRef}
         type="file"
