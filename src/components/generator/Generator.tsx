@@ -1,39 +1,58 @@
-import React, { useRef, useCallback, useState } from 'react';
+import React, { useRef, useCallback, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Konva from 'konva';
-import { Stage, Layer, Rect } from 'react-konva';
-import { Upload, Download, X, Image as ImageIcon, ArrowLeft } from 'lucide-react';
-import { Link } from 'react-router-dom';
+import { Stage, Layer, Rect, Image as KonvaImage } from 'react-konva';
+import { Download, X, Image as ImageIcon, Loader2 } from 'lucide-react';
+import { useParams } from 'react-router-dom';
 import { CanvasElement, TemplateData } from '@/types/editor';
 import { ShapeRenderer } from '../editor/ShapeRenderer';
 import { toast } from 'sonner';
+import { getTemplateBySlug } from '@/lib/templates';
+import useImage from 'use-image';
+
+const BackgroundImage: React.FC<{ src: string; width: number; height: number }> = ({ src, width, height }) => {
+  const [image] = useImage(src);
+  if (!image) return null;
+  return <KonvaImage image={image} x={0} y={0} width={width} height={height} />;
+};
 
 export const Generator: React.FC = () => {
+  const { slug } = useParams<{ slug: string }>();
   const stageRef = useRef<Konva.Stage>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const templateInputRef = useRef<HTMLInputElement>(null);
   
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [userImage, setUserImage] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const handleTemplateUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
+  // Load template from slug
+  useEffect(() => {
+    const loadTemplate = async () => {
+      if (!slug) {
+        setError('No template specified');
+        setIsLoading(false);
+        return;
+      }
 
-    const reader = new FileReader();
-    reader.onload = (event) => {
       try {
-        const data = JSON.parse(event.target?.result as string) as TemplateData;
-        setTemplate(data);
-        toast.success('Template loaded!');
-      } catch {
-        toast.error('Invalid template file');
+        const data = await getTemplateBySlug(slug);
+        if (data) {
+          setTemplate(data);
+        } else {
+          setError('Template not found');
+        }
+      } catch (err) {
+        console.error('Error loading template:', err);
+        setError('Failed to load template');
+      } finally {
+        setIsLoading(false);
       }
     };
-    reader.readAsText(file);
-    e.target.value = '';
-  }, []);
+
+    loadTemplate();
+  }, [slug]);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -63,7 +82,7 @@ export const Generator: React.FC = () => {
 
   const containerRef = useRef<HTMLDivElement>(null);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (!template || !containerRef.current) return;
 
     const updateScale = () => {
@@ -83,109 +102,92 @@ export const Generator: React.FC = () => {
 
   const hasPlaceholder = template?.elements.some((el) => el.isPlaceholder);
 
+  if (isLoading) {
+    return (
+      <div className="min-h-screen bg-canvas-bg flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-primary mx-auto mb-4" />
+          <p className="text-muted-foreground">Loading template...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen bg-canvas-bg flex items-center justify-center">
+        <div className="text-center max-w-md mx-auto p-6">
+          <div className="w-16 h-16 rounded-2xl bg-destructive/10 flex items-center justify-center mx-auto mb-4">
+            <X className="w-8 h-8 text-destructive" />
+          </div>
+          <h1 className="text-xl font-semibold mb-2">Template Not Found</h1>
+          <p className="text-muted-foreground">
+            This template link may be invalid or the template has been removed.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-canvas-bg">
       {/* Header */}
-      <header className="h-14 bg-background/80 backdrop-blur-xl border-b border-border flex items-center px-6">
-        <Link 
-          to="/"
-          className="flex items-center gap-2 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft size={18} strokeWidth={1.5} />
-          <span className="text-sm">Back to Editor</span>
-        </Link>
-
-        <div className="flex items-center gap-3 mx-auto">
+      <header className="h-14 bg-background/80 backdrop-blur-xl border-b border-border flex items-center justify-center px-6">
+        <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center">
             <span className="text-primary-foreground font-bold text-sm">DP</span>
           </div>
           <div className="text-center">
-            <h1 className="font-semibold text-sm">Generate Your DP</h1>
-            <p className="text-xs text-muted-foreground">Upload template & photo</p>
+            <h1 className="font-semibold text-sm">{template?.name || 'Generate Your DP'}</h1>
+            <p className="text-xs text-muted-foreground">Upload your photo & download</p>
           </div>
         </div>
-
-        <div className="w-[120px]" />
       </header>
 
       <div className="flex flex-col lg:flex-row h-[calc(100vh-3.5rem)]">
         {/* Sidebar */}
         <div className="lg:w-80 p-6 bg-background border-b lg:border-b-0 lg:border-r border-border space-y-6">
-          {/* Template Upload */}
-          <div className="space-y-3">
-            <h3 className="label-subtle">1. Load Template</h3>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => templateInputRef.current?.click()}
-              className={`w-full p-4 rounded-2xl border-2 border-dashed transition-colors ${
-                template 
-                  ? 'border-primary/30 bg-primary/5' 
-                  : 'border-border hover:border-primary/50 hover:bg-secondary/50'
-              }`}
-            >
-              <div className="flex flex-col items-center gap-2">
-                <Upload size={24} strokeWidth={1.5} className={template ? 'text-primary' : 'text-muted-foreground'} />
-                <span className="text-sm font-medium">
-                  {template ? template.name || 'Template Loaded' : 'Upload Template JSON'}
-                </span>
-                {template && (
-                  <span className="text-xs text-muted-foreground">
-                    {template.width} × {template.height}
-                  </span>
-                )}
-              </div>
-            </motion.button>
-          </div>
-
           {/* Photo Upload */}
-          <AnimatePresence>
-            {template && hasPlaceholder && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="space-y-3"
+          {hasPlaceholder && (
+            <div className="space-y-3">
+              <h3 className="label-subtle">1. Upload Your Photo</h3>
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.98 }}
+                onClick={() => fileInputRef.current?.click()}
+                className={`w-full p-4 rounded-2xl border-2 border-dashed transition-colors ${
+                  userImage 
+                    ? 'border-primary/30 bg-primary/5' 
+                    : 'border-border hover:border-primary/50 hover:bg-secondary/50'
+                }`}
               >
-                <h3 className="label-subtle">2. Upload Your Photo</h3>
-                <motion.button
-                  whileHover={{ scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => fileInputRef.current?.click()}
-                  className={`w-full p-4 rounded-2xl border-2 border-dashed transition-colors ${
-                    userImage 
-                      ? 'border-primary/30 bg-primary/5' 
-                      : 'border-border hover:border-primary/50 hover:bg-secondary/50'
-                  }`}
-                >
-                  {userImage ? (
-                    <div className="relative">
-                      <img 
-                        src={userImage} 
-                        alt="Your photo" 
-                        className="w-full h-32 object-cover rounded-xl"
-                      />
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUserImage(null);
-                        }}
-                        className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
-                      >
-                        <X size={14} />
-                      </button>
-                    </div>
-                  ) : (
-                    <div className="flex flex-col items-center gap-2">
-                      <ImageIcon size={24} strokeWidth={1.5} className="text-muted-foreground" />
-                      <span className="text-sm font-medium">Upload Your Photo</span>
-                      <span className="text-xs text-muted-foreground">JPG, PNG up to 10MB</span>
-                    </div>
-                  )}
-                </motion.button>
-              </motion.div>
-            )}
-          </AnimatePresence>
+                {userImage ? (
+                  <div className="relative">
+                    <img 
+                      src={userImage} 
+                      alt="Your photo" 
+                      className="w-full h-32 object-cover rounded-xl"
+                    />
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setUserImage(null);
+                      }}
+                      className="absolute top-2 right-2 p-1.5 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center gap-2">
+                    <ImageIcon size={24} strokeWidth={1.5} className="text-muted-foreground" />
+                    <span className="text-sm font-medium">Upload Your Photo</span>
+                    <span className="text-xs text-muted-foreground">JPG, PNG up to 10MB</span>
+                  </div>
+                )}
+              </motion.button>
+            </div>
+          )}
 
           {/* Download Button */}
           <AnimatePresence>
@@ -196,7 +198,7 @@ export const Generator: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-3"
               >
-                <h3 className="label-subtle">{hasPlaceholder ? '3.' : '2.'} Download</h3>
+                <h3 className="label-subtle">{hasPlaceholder ? '2.' : '1.'} Download</h3>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -214,7 +216,7 @@ export const Generator: React.FC = () => {
 
         {/* Preview Area */}
         <div ref={containerRef} className="flex-1 flex items-center justify-center p-6 canvas-container">
-          {template ? (
+          {template && (
             <div
               className="shadow-elevated rounded-lg overflow-hidden"
               style={{
@@ -228,7 +230,7 @@ export const Generator: React.FC = () => {
                 height={template.height}
               >
                 <Layer>
-                  {/* Background */}
+                  {/* Background Color */}
                   <Rect
                     x={0}
                     y={0}
@@ -236,6 +238,15 @@ export const Generator: React.FC = () => {
                     height={template.height}
                     fill={template.backgroundColor}
                   />
+
+                  {/* Background Image */}
+                  {template.backgroundImage && (
+                    <BackgroundImage
+                      src={template.backgroundImage}
+                      width={template.width}
+                      height={template.height}
+                    />
+                  )}
 
                   {/* Elements */}
                   {template.elements.map((element: CanvasElement) => (
@@ -252,28 +263,11 @@ export const Generator: React.FC = () => {
                 </Layer>
               </Stage>
             </div>
-          ) : (
-            <div className="text-center">
-              <div className="w-20 h-20 rounded-2xl bg-secondary/50 flex items-center justify-center mx-auto mb-4">
-                <Upload size={32} strokeWidth={1.5} className="text-muted-foreground" />
-              </div>
-              <h2 className="text-lg font-semibold mb-2">No Template Loaded</h2>
-              <p className="text-muted-foreground text-sm max-w-xs mx-auto">
-                Upload a template JSON file to get started. Create templates in the Editor mode.
-              </p>
-            </div>
           )}
         </div>
       </div>
 
-      {/* Hidden inputs */}
-      <input
-        ref={templateInputRef}
-        type="file"
-        accept=".json"
-        onChange={handleTemplateUpload}
-        className="hidden"
-      />
+      {/* Hidden input */}
       <input
         ref={fileInputRef}
         type="file"

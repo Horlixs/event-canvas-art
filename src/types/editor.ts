@@ -54,6 +54,7 @@ export interface TemplateData {
   height: number;
   elements: CanvasElement[];
   backgroundColor: string;
+  backgroundImage?: string | null;
 }
 
 export type EditorMode = 'editor' | 'generator';
