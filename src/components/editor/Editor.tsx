@@ -5,10 +5,12 @@ import { CanvasStage } from './CanvasStage';
 import { FloatingToolbar } from './FloatingToolbar';
 import { PropertiesPanel } from './PropertiesPanel';
 import { toast } from 'sonner';
+import { ImagePlus, X } from 'lucide-react';
 
 export const Editor: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const bgImageInputRef = useRef<HTMLInputElement>(null);
 
   const {
     elements,
@@ -17,6 +19,8 @@ export const Editor: React.FC = () => {
     canvasSize,
     backgroundColor,
     setBackgroundColor,
+    backgroundImage,
+    setBackgroundImage,
     addElement,
     updateElement,
     deleteElement,
@@ -87,6 +91,28 @@ export const Editor: React.FC = () => {
     e.target.value = '';
   }, [importTemplate]);
 
+  const handleBackgroundImageUpload = useCallback(() => {
+    bgImageInputRef.current?.click();
+  }, []);
+
+  const handleBackgroundImageChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      setBackgroundImage(event.target?.result as string);
+      toast.success('Background image added!');
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  }, [setBackgroundImage]);
+
+  const handleRemoveBackgroundImage = useCallback(() => {
+    setBackgroundImage(null);
+    toast.success('Background image removed');
+  }, [setBackgroundImage]);
+
   const handleDelete = useCallback(() => {
     if (selectedId) {
       deleteElement(selectedId);
@@ -138,19 +164,48 @@ export const Editor: React.FC = () => {
           </div>
         </div>
 
-        {/* Background Color Picker */}
-        <div className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-muted-foreground">Background</span>
-          <div
-            className="w-8 h-8 rounded-lg border border-border cursor-pointer overflow-hidden shadow-subtle"
-            style={{ backgroundColor }}
-          >
-            <input
-              type="color"
-              value={backgroundColor}
-              onChange={(e) => setBackgroundColor(e.target.value)}
-              className="w-full h-full opacity-0 cursor-pointer"
-            />
+        {/* Background Controls */}
+        <div className="ml-auto flex items-center gap-4">
+          {/* Background Color */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Color</span>
+            <div
+              className="w-8 h-8 rounded-lg border border-border cursor-pointer overflow-hidden shadow-subtle"
+              style={{ backgroundColor }}
+            >
+              <input
+                type="color"
+                value={backgroundColor}
+                onChange={(e) => setBackgroundColor(e.target.value)}
+                className="w-full h-full opacity-0 cursor-pointer"
+              />
+            </div>
+          </div>
+
+          {/* Background Image */}
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-muted-foreground">Image</span>
+            {backgroundImage ? (
+              <div className="flex items-center gap-1">
+                <div 
+                  className="w-8 h-8 rounded-lg border border-border overflow-hidden shadow-subtle bg-cover bg-center"
+                  style={{ backgroundImage: `url(${backgroundImage})` }}
+                />
+                <button
+                  onClick={handleRemoveBackgroundImage}
+                  className="w-6 h-6 rounded-md flex items-center justify-center text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={handleBackgroundImageUpload}
+                className="w-8 h-8 rounded-lg border border-dashed border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+              >
+                <ImagePlus className="w-4 h-4" />
+              </button>
+            )}
           </div>
         </div>
       </header>
@@ -165,6 +220,7 @@ export const Editor: React.FC = () => {
           onUpdate={updateElement}
           canvasSize={canvasSize}
           backgroundColor={backgroundColor}
+          backgroundImage={backgroundImage}
           stageRef={stageRef}
         />
 
@@ -195,12 +251,19 @@ export const Editor: React.FC = () => {
         />
       </div>
 
-      {/* Hidden file input */}
+      {/* Hidden file inputs */}
       <input
         ref={fileInputRef}
         type="file"
         accept=".json"
         onChange={handleFileChange}
+        className="hidden"
+      />
+      <input
+        ref={bgImageInputRef}
+        type="file"
+        accept="image/*"
+        onChange={handleBackgroundImageChange}
         className="hidden"
       />
     </div>
