@@ -93,6 +93,8 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     } else if (element.type === 'circle' || element.type === 'polygon') {
       const scaleAvg = (node.scaleX() + node.scaleY()) / 2;
       updates.radius = Math.max(10, (element as { radius: number }).radius * scaleAvg);
+    } else if (element.type === 'text') {
+      updates.width = Math.max(50, node.width() * node.scaleX());
     }
 
     node.scaleX(1);

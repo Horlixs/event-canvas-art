@@ -172,6 +172,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           fill={element.fill}
           stroke={element.stroke}
           strokeWidth={element.strokeWidth}
+          width={element.width}
+          wrap="word"
           name="element"
           id={element.id}
         />
