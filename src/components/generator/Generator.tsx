@@ -22,6 +22,7 @@ export const Generator: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [template, setTemplate] = useState<TemplateData | null>(null);
+  const [elements, setElements] = useState<CanvasElement[]>([]);
   const [userImage, setUserImage] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
@@ -40,6 +41,7 @@ export const Generator: React.FC = () => {
         const data = await getTemplateBySlug(slug);
         if (data) {
           setTemplate(data);
+          setElements(data.elements);
         } else {
           setError('Template not found');
         }
@@ -53,6 +55,15 @@ export const Generator: React.FC = () => {
 
     loadTemplate();
   }, [slug]);
+
+  // Get text elements for editing
+  const textElements = elements.filter((el) => el.type === 'text');
+
+  const updateTextElement = useCallback((id: string, text: string) => {
+    setElements((prev) => 
+      prev.map((el) => el.id === id ? { ...el, text } : el)
+    );
+  }, []);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -100,7 +111,7 @@ export const Generator: React.FC = () => {
     return () => window.removeEventListener('resize', updateScale);
   }, [template]);
 
-  const hasPlaceholder = template?.elements.some((el) => el.isPlaceholder);
+  const hasPlaceholder = elements.some((el) => el.isPlaceholder);
 
   if (isLoading) {
     return (
@@ -189,6 +200,27 @@ export const Generator: React.FC = () => {
             </div>
           )}
 
+          {/* Text Editing */}
+          {textElements.length > 0 && (
+            <div className="space-y-3">
+              <h3 className="label-subtle">{hasPlaceholder ? '2.' : '1.'} Edit Text</h3>
+              {textElements.map((el, index) => (
+                <div key={el.id} className="space-y-1">
+                  <label className="text-xs text-muted-foreground">
+                    Text {textElements.length > 1 ? index + 1 : ''}
+                  </label>
+                  <input
+                    type="text"
+                    value={(el as { text: string }).text}
+                    onChange={(e) => updateTextElement(el.id, e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    placeholder="Enter your text..."
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
           {/* Download Button */}
           <AnimatePresence>
             {template && (
@@ -198,7 +230,7 @@ export const Generator: React.FC = () => {
                 exit={{ opacity: 0, y: -10 }}
                 className="space-y-3"
               >
-                <h3 className="label-subtle">{hasPlaceholder ? '2.' : '1.'} Download</h3>
+                <h3 className="label-subtle">{hasPlaceholder ? (textElements.length > 0 ? '3.' : '2.') : (textElements.length > 0 ? '2.' : '1.')} Download</h3>
                 <motion.button
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
@@ -249,7 +281,7 @@ export const Generator: React.FC = () => {
                   )}
 
                   {/* Elements */}
-                  {template.elements.map((element: CanvasElement) => (
+                  {elements.map((element: CanvasElement) => (
                     <ShapeRenderer
                       key={element.id}
                       element={element}

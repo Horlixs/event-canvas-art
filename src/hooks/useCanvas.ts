@@ -62,6 +62,8 @@ export const useCanvas = () => {
           text: 'Your Text Here',
           fontSize: 48,
           fontFamily: 'Inter',
+          fontStyle: 'normal',
+          fontWeight: 400,
           fill: '#1f2937',
           stroke: '',
           strokeWidth: 0,

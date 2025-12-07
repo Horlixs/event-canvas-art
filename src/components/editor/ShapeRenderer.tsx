@@ -162,13 +162,19 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       );
     }
 
-    case 'text':
+    case 'text': {
+      // Konva uses combined fontStyle string: "italic bold" or just "bold" or "italic" or "normal"
+      const fontStyleStr = element.fontStyle === 'italic' ? 'italic' : '';
+      const fontWeightStr = element.fontWeight >= 700 ? 'bold' : element.fontWeight <= 300 ? '300' : '';
+      const combinedStyle = [fontStyleStr, fontWeightStr].filter(Boolean).join(' ') || 'normal';
+      
       return (
         <Text
           {...commonProps}
           text={element.text}
           fontSize={element.fontSize}
           fontFamily={element.fontFamily}
+          fontStyle={combinedStyle}
           fill={element.fill}
           stroke={element.stroke}
           strokeWidth={element.strokeWidth}
@@ -178,6 +184,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
           id={element.id}
         />
       );
+    }
 
     default:
       return null;
