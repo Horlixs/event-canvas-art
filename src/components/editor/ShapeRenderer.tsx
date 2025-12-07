@@ -81,9 +81,15 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     case 'rect': {
       const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
       
-      // Calculate scale to cover the shape (cover, not contain)
+      // Calculate scale to cover the shape
       const scaleX = shouldUseImage ? element.width / image.width : 1;
       const scaleY = shouldUseImage ? element.height / image.height : 1;
+      
+      // The pattern is drawn from (0,0) of the shape's local coordinates
+      // Since we use offset, the shape's local (0,0) is at its center
+      // We need to shift the pattern so the image center aligns with shape center
+      const patternOffsetX = shouldUseImage ? (image.width * scaleX) / 2 : 0;
+      const patternOffsetY = shouldUseImage ? (image.height * scaleY) / 2 : 0;
       
       return (
         <>
@@ -98,8 +104,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             fillPatternImage={shouldUseImage ? image : undefined}
             fillPatternScaleX={scaleX}
             fillPatternScaleY={scaleY}
-            fillPatternX={shouldUseImage ? -element.width / 2 : 0}
-            fillPatternY={shouldUseImage ? -element.height / 2 : 0}
+            fillPatternOffsetX={patternOffsetX}
+            fillPatternOffsetY={patternOffsetY}
             stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
             strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
             dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
@@ -119,6 +125,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       const scaleX = shouldUseImage ? diameter / image.width : 1;
       const scaleY = shouldUseImage ? diameter / image.height : 1;
       
+      // Center the pattern within the circle
+      const patternOffsetX = shouldUseImage ? (image.width * scaleX) / 2 : 0;
+      const patternOffsetY = shouldUseImage ? (image.height * scaleY) / 2 : 0;
+      
       return (
         <>
           <Circle
@@ -128,8 +138,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             fillPatternImage={shouldUseImage ? image : undefined}
             fillPatternScaleX={scaleX}
             fillPatternScaleY={scaleY}
-            fillPatternX={shouldUseImage ? -element.radius : 0}
-            fillPatternY={shouldUseImage ? -element.radius : 0}
+            fillPatternOffsetX={patternOffsetX}
+            fillPatternOffsetY={patternOffsetY}
             stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
             strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
             dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
@@ -149,6 +159,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       const scaleX = shouldUseImage ? diameter / image.width : 1;
       const scaleY = shouldUseImage ? diameter / image.height : 1;
       
+      // Center the pattern within the polygon
+      const patternOffsetX = shouldUseImage ? (image.width * scaleX) / 2 : 0;
+      const patternOffsetY = shouldUseImage ? (image.height * scaleY) / 2 : 0;
+      
       return (
         <>
           <RegularPolygon
@@ -159,8 +173,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             fillPatternImage={shouldUseImage ? image : undefined}
             fillPatternScaleX={scaleX}
             fillPatternScaleY={scaleY}
-            fillPatternX={shouldUseImage ? -element.radius : 0}
-            fillPatternY={shouldUseImage ? -element.radius : 0}
+            fillPatternOffsetX={patternOffsetX}
+            fillPatternOffsetY={patternOffsetY}
             stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
             strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
             dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
