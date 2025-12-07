@@ -41,6 +41,8 @@ export interface TextElement extends BaseElement {
   text: string;
   fontSize: number;
   fontFamily: string;
+  fontStyle: 'normal' | 'italic';
+  fontWeight: number;
   fill: string;
   stroke: string;
   strokeWidth: number;

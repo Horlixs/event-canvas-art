@@ -281,6 +281,37 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                     ))}
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <span className="label-subtle">Font Weight</span>
+                  <select
+                    value={element.fontWeight}
+                    onChange={(e) => onUpdate({ fontWeight: Number(e.target.value) })}
+                    className="select-minimal w-full"
+                  >
+                    <option value={100}>Thin (100)</option>
+                    <option value={200}>Extra Light (200)</option>
+                    <option value={300}>Light (300)</option>
+                    <option value={400}>Regular (400)</option>
+                    <option value={500}>Medium (500)</option>
+                    <option value={600}>Semi Bold (600)</option>
+                    <option value={700}>Bold (700)</option>
+                    <option value={800}>Extra Bold (800)</option>
+                    <option value={900}>Black (900)</option>
+                  </select>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="label-subtle">Italic</span>
+                  <button
+                    onClick={() => onUpdate({ fontStyle: element.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                    className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-colors ${
+                      element.fontStyle === 'italic' 
+                        ? 'bg-primary text-primary-foreground' 
+                        : 'bg-secondary text-secondary-foreground hover:bg-secondary/80'
+                    }`}
+                  >
+                    <span className="italic">I</span>
+                  </button>
+                </div>
                 <SliderInput
                   label="Font Size"
                   value={element.fontSize}
