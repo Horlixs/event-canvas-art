@@ -81,6 +81,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     case 'rect': {
       const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
       
+      // Calculate scale to cover the shape (cover, not contain)
+      const scaleX = shouldUseImage ? element.width / image.width : 1;
+      const scaleY = shouldUseImage ? element.height / image.height : 1;
+      
       return (
         <>
           <Rect
@@ -92,10 +96,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             cornerRadius={element.cornerRadius}
             fill={shouldUseImage ? undefined : element.fill}
             fillPatternImage={shouldUseImage ? image : undefined}
-            fillPatternScaleX={shouldUseImage ? element.width / image.width : 1}
-            fillPatternScaleY={shouldUseImage ? element.height / image.height : 1}
-            fillPatternOffsetX={shouldUseImage ? element.width / 2 : 0}
-            fillPatternOffsetY={shouldUseImage ? element.height / 2 : 0}
+            fillPatternScaleX={scaleX}
+            fillPatternScaleY={scaleY}
+            fillPatternX={shouldUseImage ? -element.width / 2 : 0}
+            fillPatternY={shouldUseImage ? -element.height / 2 : 0}
             stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
             strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
             dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
@@ -111,6 +115,9 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
 
     case 'circle': {
       const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
+      const diameter = element.radius * 2;
+      const scaleX = shouldUseImage ? diameter / image.width : 1;
+      const scaleY = shouldUseImage ? diameter / image.height : 1;
       
       return (
         <>
@@ -119,10 +126,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             radius={element.radius}
             fill={shouldUseImage ? undefined : element.fill}
             fillPatternImage={shouldUseImage ? image : undefined}
-            fillPatternScaleX={shouldUseImage ? (element.radius * 2) / image.width : 1}
-            fillPatternScaleY={shouldUseImage ? (element.radius * 2) / image.height : 1}
-            fillPatternOffsetX={shouldUseImage ? element.radius : 0}
-            fillPatternOffsetY={shouldUseImage ? element.radius : 0}
+            fillPatternScaleX={scaleX}
+            fillPatternScaleY={scaleY}
+            fillPatternX={shouldUseImage ? -element.radius : 0}
+            fillPatternY={shouldUseImage ? -element.radius : 0}
             stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
             strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
             dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
@@ -130,7 +137,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             id={element.id}
           />
           {showPlaceholderIcon && (
-            <PlaceholderIcon x={element.x} y={element.y} size={element.radius * 2} />
+            <PlaceholderIcon x={element.x} y={element.y} size={diameter} />
           )}
         </>
       );
@@ -138,6 +145,9 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
 
     case 'polygon': {
       const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
+      const diameter = element.radius * 2;
+      const scaleX = shouldUseImage ? diameter / image.width : 1;
+      const scaleY = shouldUseImage ? diameter / image.height : 1;
       
       return (
         <>
@@ -147,8 +157,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             radius={element.radius}
             fill={shouldUseImage ? undefined : element.fill}
             fillPatternImage={shouldUseImage ? image : undefined}
-            fillPatternScaleX={shouldUseImage ? (element.radius * 2) / image.width : 1}
-            fillPatternScaleY={shouldUseImage ? (element.radius * 2) / image.height : 1}
+            fillPatternScaleX={scaleX}
+            fillPatternScaleY={scaleY}
+            fillPatternX={shouldUseImage ? -element.radius : 0}
+            fillPatternY={shouldUseImage ? -element.radius : 0}
             stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
             strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
             dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
@@ -156,7 +168,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             id={element.id}
           />
           {showPlaceholderIcon && (
-            <PlaceholderIcon x={element.x} y={element.y} size={element.radius * 2} />
+            <PlaceholderIcon x={element.x} y={element.y} size={diameter} />
           )}
         </>
       );
