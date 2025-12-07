@@ -65,6 +65,7 @@ export const useCanvas = () => {
           fill: '#1f2937',
           stroke: '',
           strokeWidth: 0,
+          width: 300,
         };
         break;
       default:

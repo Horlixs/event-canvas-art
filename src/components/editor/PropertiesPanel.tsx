@@ -14,6 +14,16 @@ const GOOGLE_FONTS = [
   { name: 'Roboto', value: 'Roboto' },
   { name: 'Oswald', value: 'Oswald' },
   { name: 'Lobster', value: 'Lobster' },
+  { name: 'Montserrat', value: 'Montserrat' },
+  { name: 'Poppins', value: 'Poppins' },
+  { name: 'Playfair Display', value: 'Playfair Display' },
+  { name: 'Raleway', value: 'Raleway' },
+  { name: 'Open Sans', value: 'Open Sans' },
+  { name: 'Lato', value: 'Lato' },
+  { name: 'Source Sans 3', value: 'Source Sans 3' },
+  { name: 'Bebas Neue', value: 'Bebas Neue' },
+  { name: 'Dancing Script', value: 'Dancing Script' },
+  { name: 'Pacifico', value: 'Pacifico' },
 ];
 
 const ColorInput: React.FC<{
@@ -277,6 +287,14 @@ export const PropertiesPanel: React.FC<PropertiesPanelProps> = ({
                   min={12}
                   max={200}
                   onChange={(fontSize) => onUpdate({ fontSize })}
+                  unit="px"
+                />
+                <SliderInput
+                  label="Max Width"
+                  value={element.width}
+                  min={50}
+                  max={800}
+                  onChange={(width) => onUpdate({ width })}
                   unit="px"
                 />
               </div>

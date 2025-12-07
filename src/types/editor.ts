@@ -44,6 +44,7 @@ export interface TextElement extends BaseElement {
   fill: string;
   stroke: string;
   strokeWidth: number;
+  width: number;
 }
 
 export type CanvasElement = RectElement | CircleElement | PolygonElement | TextElement;
