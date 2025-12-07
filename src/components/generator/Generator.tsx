@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import Konva from 'konva';
 import { Stage, Layer, Rect, Image as KonvaImage } from 'react-konva';
@@ -9,6 +9,7 @@ import { ShapeRenderer } from '../editor/ShapeRenderer';
 import { toast } from 'sonner';
 import { getTemplateBySlug } from '@/lib/templates';
 import useImage from 'use-image';
+import { ImageCropper } from './ImageCropper';
 
 const BackgroundImage: React.FC<{ src: string; width: number; height: number }> = ({ src, width, height }) => {
   const [image] = useImage(src);
@@ -24,6 +25,7 @@ export const Generator: React.FC = () => {
   const [template, setTemplate] = useState<TemplateData | null>(null);
   const [elements, setElements] = useState<CanvasElement[]>([]);
   const [userImage, setUserImage] = useState<string | null>(null);
+  const [imageToCrop, setImageToCrop] = useState<string | null>(null);
   const [scale, setScale] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -59,6 +61,19 @@ export const Generator: React.FC = () => {
   // Get text elements for editing
   const textElements = elements.filter((el) => el.type === 'text');
 
+  // Calculate placeholder aspect ratio
+  const placeholderAspectRatio = useMemo(() => {
+    const placeholder = elements.find((el) => el.isPlaceholder);
+    if (!placeholder) return 1;
+    
+    if (placeholder.type === 'rect') {
+      return placeholder.width / placeholder.height;
+    } else if (placeholder.type === 'circle' || placeholder.type === 'polygon') {
+      return 1; // Circle and polygon are square aspect ratio
+    }
+    return 1;
+  }, [elements]);
+
   const updateTextElement = useCallback((id: string, text: string) => {
     setElements((prev) => 
       prev.map((el) => el.id === id ? { ...el, text } : el)
@@ -71,11 +86,21 @@ export const Generator: React.FC = () => {
 
     const reader = new FileReader();
     reader.onload = (event) => {
-      setUserImage(event.target?.result as string);
-      toast.success('Photo uploaded!');
+      // Open cropper instead of directly setting image
+      setImageToCrop(event.target?.result as string);
     };
     reader.readAsDataURL(file);
     e.target.value = '';
+  }, []);
+
+  const handleCropComplete = useCallback((croppedImageUrl: string) => {
+    setUserImage(croppedImageUrl);
+    setImageToCrop(null);
+    toast.success('Photo cropped and applied!');
+  }, []);
+
+  const handleCropCancel = useCallback(() => {
+    setImageToCrop(null);
   }, []);
 
   const handleDownload = useCallback(() => {
@@ -307,6 +332,18 @@ export const Generator: React.FC = () => {
         onChange={handleImageUpload}
         className="hidden"
       />
+
+      {/* Image Cropper Modal */}
+      <AnimatePresence>
+        {imageToCrop && (
+          <ImageCropper
+            imageSrc={imageToCrop}
+            aspectRatio={placeholderAspectRatio}
+            onCropComplete={handleCropComplete}
+            onCancel={handleCropCancel}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };
