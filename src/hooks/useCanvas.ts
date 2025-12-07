@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { CanvasElement, ShapeType } from '@/types/editor';
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
@@ -6,9 +6,23 @@ const generateId = () => Math.random().toString(36).substring(2, 11);
 export const useCanvas = () => {
   const [elements, setElements] = useState<CanvasElement[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [canvasSize] = useState({ width: 1080, height: 1080 });
+  const [canvasSize, setCanvasSize] = useState({ width: 1080, height: 1080 });
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+
+  // --- Auto adjust canvas size based on uploaded background image ---
+  useEffect(() => {
+    if (!backgroundImage) return;
+
+    const img = new Image();
+    img.src = backgroundImage;
+    img.onload = () => {
+      setCanvasSize({
+        width: img.width,
+        height: img.height,
+      });
+    };
+  }, [backgroundImage]);
 
   const addElement = useCallback((type: ShapeType) => {
     const baseProps = {
@@ -80,21 +94,13 @@ export const useCanvas = () => {
 
   const updateElement = useCallback((id: string, updates: Partial<CanvasElement>) => {
     setElements((prev) =>
-      prev.map((el) => {
-        if (el.id === id) {
-          // Use type assertion to handle the union type
-          return { ...el, ...updates } as CanvasElement;
-        }
-        return el;
-      })
+      prev.map((el) => (el.id === id ? { ...el, ...updates } as CanvasElement : el))
     );
   }, []);
 
   const deleteElement = useCallback((id: string) => {
     setElements((prev) => prev.filter((el) => el.id !== id));
-    if (selectedId === id) {
-      setSelectedId(null);
-    }
+    if (selectedId === id) setSelectedId(null);
   }, [selectedId]);
 
   const duplicateElement = useCallback((id: string) => {
@@ -127,33 +133,23 @@ export const useCanvas = () => {
     });
   }, []);
 
-  const getSelectedElement = useCallback(() => {
-    return elements.find((el) => el.id === selectedId) || null;
-  }, [elements, selectedId]);
+  const getSelectedElement = useCallback(() => elements.find((el) => el.id === selectedId) || null, [elements, selectedId]);
 
-  const clearSelection = useCallback(() => {
-    setSelectedId(null);
-  }, []);
+  const clearSelection = useCallback(() => setSelectedId(null), []);
 
-  const exportTemplate = useCallback(() => {
-    return {
-      name: 'Untitled Template',
-      width: canvasSize.width,
-      height: canvasSize.height,
-      elements,
-      backgroundColor,
-      backgroundImage,
-    };
-  }, [elements, canvasSize, backgroundColor, backgroundImage]);
+  const exportTemplate = useCallback(() => ({
+    name: 'Untitled Template',
+    width: canvasSize.width,
+    height: canvasSize.height,
+    elements,
+    backgroundColor,
+    backgroundImage,
+  }), [elements, canvasSize, backgroundColor, backgroundImage]);
 
   const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null }) => {
     setElements(template.elements);
-    if (template.backgroundColor) {
-      setBackgroundColor(template.backgroundColor);
-    }
-    if (template.backgroundImage !== undefined) {
-      setBackgroundImage(template.backgroundImage);
-    }
+    if (template.backgroundColor) setBackgroundColor(template.backgroundColor);
+    if (template.backgroundImage !== undefined) setBackgroundImage(template.backgroundImage);
     setSelectedId(null);
   }, []);
 
@@ -162,6 +158,7 @@ export const useCanvas = () => {
     selectedId,
     setSelectedId,
     canvasSize,
+    setCanvasSize, // expose setCanvasSize so canvas can be manually adjusted if needed
     backgroundColor,
     setBackgroundColor,
     backgroundImage,

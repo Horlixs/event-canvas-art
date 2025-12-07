@@ -331,12 +331,15 @@ const Homepage = () => {
             </p>
             
             <div className="flex justify-center">
+            
+            <Link to="/create" className="md:block hidden">
                  <Button 
                     variant="secondary" 
                     className="rounded-full w-full sm:w-auto px-8 py-4 md:px-10 md:py-4 h-auto text-base md:text-lg font-bold shadow-xl"
                  >
                     Create Campaign Now
                  </Button>
+                 </Link>
             </div>
           </div>
         </FadeIn>

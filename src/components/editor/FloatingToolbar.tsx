@@ -12,7 +12,7 @@ import {
   ChevronDown,
 } from 'lucide-react';
 import { ShapeType } from '@/types/editor';
-import { cn } from '@/lib/utils'; // Assuming you have this, if not, standard template literals work too
+import { cn } from '@/lib/utils';
 
 interface FloatingToolbarProps {
   onAddElement: (type: ShapeType) => void;
@@ -30,8 +30,7 @@ interface ToolButtonProps {
   label: string;
   onClick: () => void;
   disabled?: boolean;
-  className?: string; // Allow custom styles
-  isActive?: boolean;
+  className?: string;
 }
 
 const ToolButton: React.FC<ToolButtonProps> = ({ 
@@ -43,10 +42,11 @@ const ToolButton: React.FC<ToolButtonProps> = ({
 }) => {
   return (
     <motion.button
-      whileHover={{ scale: 1.05 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.1 }}
+      whileTap={{ scale: 0.9 }}
       className={cn(
-        "p-2.5 rounded-lg text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
+        // Increased padding (p-3) and base size for better visibility
+        "p-3 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
         className
       )}
       onClick={onClick}
@@ -60,7 +60,7 @@ const ToolButton: React.FC<ToolButtonProps> = ({
 };
 
 const Divider = () => (
-  <div className="w-px h-6 bg-neutral-200 dark:bg-neutral-800 mx-1" />
+  <div className="w-px h-8 bg-neutral-200 dark:bg-neutral-800 mx-1.5" />
 );
 
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
@@ -75,30 +75,31 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
 }) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      className="flex items-center gap-1 p-2 bg-white dark:bg-neutral-900 rounded-full shadow-[0_8px_30px_rgb(0,0,0,0.12)] border border-neutral-200 dark:border-neutral-800"
+      // Added shadow-xl and backdrop-blur for a more 'substantial' feel
+      className="flex items-center gap-1 p-2 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-neutral-200/50 dark:border-neutral-800/50"
     >
       {/* --- Section 1: Shape Tools --- */}
-      <div className="flex items-center gap-1 px-1">
+      <div className="flex items-center gap-1">
         <ToolButton
-          icon={<Square size={18} strokeWidth={2} />}
+          icon={<Square size={22} strokeWidth={2} />}
           label="Add Rectangle"
           onClick={() => onAddElement('rect')}
         />
         <ToolButton
-          icon={<Circle size={18} strokeWidth={2} />}
+          icon={<Circle size={22} strokeWidth={2} />}
           label="Add Circle"
           onClick={() => onAddElement('circle')}
         />
         <ToolButton
-          icon={<Hexagon size={18} strokeWidth={2} />}
+          icon={<Hexagon size={22} strokeWidth={2} />}
           label="Add Polygon"
           onClick={() => onAddElement('polygon')}
         />
         <ToolButton
-          icon={<Type size={18} strokeWidth={2} />}
+          icon={<Type size={22} strokeWidth={2} />}
           label="Add Text"
           onClick={() => onAddElement('text')}
         />
@@ -107,21 +108,21 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
       <Divider />
 
       {/* --- Section 2: Manipulation Tools --- */}
-      <div className="flex items-center gap-1 px-1">
+      <div className="flex items-center gap-1">
         <ToolButton
-          icon={<Copy size={18} strokeWidth={2} />}
+          icon={<Copy size={22} strokeWidth={2} />}
           label="Duplicate"
           onClick={() => onDuplicate?.()}
           disabled={!hasSelection}
         />
         <ToolButton
-          icon={<ChevronUp size={18} strokeWidth={2} />}
+          icon={<ChevronUp size={22} strokeWidth={2} />}
           label="Move Forward"
           onClick={() => onMoveUp?.()}
           disabled={!hasSelection}
         />
         <ToolButton
-          icon={<ChevronDown size={18} strokeWidth={2} />}
+          icon={<ChevronDown size={22} strokeWidth={2} />}
           label="Move Backward"
           onClick={() => onMoveDown?.()}
           disabled={!hasSelection}
@@ -131,12 +132,12 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
       <Divider />
 
       {/* --- Section 3: Delete --- */}
-      <div className="flex items-center gap-1 px-1">
+      <div className="flex items-center gap-1">
         <ToolButton
-          icon={<Trash2 size={18} strokeWidth={2} />}
+          icon={<Trash2 size={22} strokeWidth={2} />}
           label="Delete"
           onClick={() => onDelete?.()}
-          className="hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20"
+          className="hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/30"
           disabled={!hasSelection}
         />
       </div>
@@ -144,16 +145,18 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
       <Divider />
 
       {/* --- Section 4: Publish --- */}
-      <div className="pl-1">
+      <div className="pl-1 pr-1">
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={onPublish}
           disabled={isPublishing}
-          className="h-10 w-10 flex items-center justify-center rounded-full bg-primary hover:bg-slate-900 text-white shadow-md transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          title="Publish & Share"
+          // Made this button larger and more prominent
+          className="h-12 px-6 flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/80 text-white shadow-lg shadow-blue-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none"
+          title="Publish Campaign"
         >
-          <Share2 size={18} strokeWidth={2} />
+          <Share2 size={20} strokeWidth={2.5} />
+          <span className="font-semibold text-sm">Publish</span>
         </motion.button>
       </div>
     </motion.div>
