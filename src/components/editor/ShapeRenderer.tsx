@@ -3,6 +3,7 @@ import { Rect, Circle, RegularPolygon, Text, Group, Line } from 'react-konva';
 import { CanvasElement } from '@/types/editor';
 import useImage from 'use-image';
 import Konva from 'konva';
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 interface ShapeRendererProps {
   element: CanvasElement;
@@ -71,25 +72,17 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     onDragEnd: handleDragEnd,
   };
 
-  const renderPlaceholderOverlay = (centerX: number, centerY: number, size: number) => {
-    if (!element.isPlaceholder || isGeneratorMode) return null;
-    return <PlaceholderIcon x={centerX} y={centerY} size={size} />;
-  };
 
-  const getFillPattern = () => {
-    if (element.isPlaceholder && isGeneratorMode && image) {
-      return undefined; // We'll use fillPatternImage instead
-    }
-    if (element.type === 'text') return element.fill;
-    return element.fill;
-  };
+
+  // Placeholder icons are rendered separately in a different layer to not interfere with transforms
+  const showPlaceholderIcon = element.isPlaceholder && !isGeneratorMode;
 
   switch (element.type) {
     case 'rect': {
       const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
       
       return (
-        <Group>
+        <>
           <Rect
             {...commonProps}
             width={element.width}
@@ -109,8 +102,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             name="element"
             id={element.id}
           />
-          {renderPlaceholderOverlay(element.x, element.y, Math.min(element.width, element.height))}
-        </Group>
+          {showPlaceholderIcon && (
+            <PlaceholderIcon x={element.x} y={element.y} size={Math.min(element.width, element.height)} />
+          )}
+        </>
       );
     }
 
@@ -118,7 +113,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
       
       return (
-        <Group>
+        <>
           <Circle
             {...commonProps}
             radius={element.radius}
@@ -134,8 +129,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             name="element"
             id={element.id}
           />
-          {renderPlaceholderOverlay(element.x, element.y, element.radius * 2)}
-        </Group>
+          {showPlaceholderIcon && (
+            <PlaceholderIcon x={element.x} y={element.y} size={element.radius * 2} />
+          )}
+        </>
       );
     }
 
@@ -143,7 +140,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
       
       return (
-        <Group>
+        <>
           <RegularPolygon
             {...commonProps}
             sides={element.sides}
@@ -158,8 +155,10 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             name="element"
             id={element.id}
           />
-          {renderPlaceholderOverlay(element.x, element.y, element.radius * 2)}
-        </Group>
+          {showPlaceholderIcon && (
+            <PlaceholderIcon x={element.x} y={element.y} size={element.radius * 2} />
+          )}
+        </>
       );
     }
 
