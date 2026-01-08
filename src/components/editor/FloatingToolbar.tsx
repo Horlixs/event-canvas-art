@@ -44,9 +44,9 @@ const ToolButton: React.FC<ToolButtonProps> = ({
     <motion.button
       whileHover={{ scale: 1.1 }}
       whileTap={{ scale: 0.9 }}
-      className={cn(
+        className={cn(
         // Increased padding (p-3) and base size for better visibility
-        "p-3 rounded-xl text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100 dark:text-neutral-400 dark:hover:text-neutral-100 dark:hover:bg-neutral-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
+        "p-3 rounded-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
         className
       )}
       onClick={onClick}
@@ -60,7 +60,7 @@ const ToolButton: React.FC<ToolButtonProps> = ({
 };
 
 const Divider = () => (
-  <div className="w-px h-8 bg-neutral-200 dark:bg-neutral-800 mx-1.5" />
+  <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-1.5" />
 );
 
 export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
@@ -79,7 +79,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
       // Added shadow-xl and backdrop-blur for a more 'substantial' feel
-      className="flex items-center gap-1 p-2 bg-white/95 dark:bg-neutral-900/95 backdrop-blur-md rounded-2xl shadow-2xl border border-neutral-200/50 dark:border-neutral-800/50"
+      className="flex items-center gap-1 p-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 dark:border-white/10"
     >
       {/* --- Section 1: Shape Tools --- */}
       <div className="flex items-center gap-1">
@@ -152,7 +152,7 @@ export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
           onClick={onPublish}
           disabled={isPublishing}
           // Made this button larger and more prominent
-          className="h-12 px-6 flex items-center gap-2 rounded-xl bg-primary hover:bg-primary/80 text-white shadow-lg shadow-blue-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none"
+          className="h-12 px-6 flex items-center gap-2 rounded-md bg-primary hover:bg-primary/80 text-white shadow-lg shadow-blue-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none"
           title="Publish Campaign"
         >
           <Share2 size={20} strokeWidth={2.5} />

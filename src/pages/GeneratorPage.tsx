@@ -1,7 +1,5 @@
 import { Generator } from '@/components/generator/Generator';
 
-const GeneratorPage = () => {
+export const GeneratorPage = () => {
   return <Generator />;
 };
-
-export default GeneratorPage;

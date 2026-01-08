@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, Share2, UploadCloud, Star, Quote, Moon, Sun } from "lucide-react";
+import { ArrowRight, Users, Share2, UploadCloud, Star, Quote, Moon, Sun, Sparkles, LayoutDashboard, Clock3, ShieldCheck, Palette, Zap, Globe2, Camera, BarChart3 } from "lucide-react";
 
 // --- ANIMATION COMPONENTS ---
 
@@ -31,6 +31,42 @@ const campaignHooks = [
 const campaignExamples = [
   "Tech Summit 2025", "DevFest Lagos", "Product Launch", "Community Meetup",
   "Wedding RSVP", "Birthday Bash", "Hackathon v1.0", "Charity Walk"
+];
+
+const stats = [
+  { label: "Active campaigns", value: "1,240", trend: "+12%" },
+  { label: "DPs rendered", value: "2.6M", trend: "+340k" },
+  { label: "Avg. share time", value: "28s", trend: "Realtime" },
+];
+
+const quickActions = [
+  {
+    title: "Instant Studio",
+    desc: "Drop a PNG frame and publish a share link in under a minute.",
+    icon: LayoutDashboard,
+    cta: "Open editor",
+    href: "/create",
+  },
+  {
+    title: "Launchpad",
+    desc: "Generate a public link and track how fast your DP spreads.",
+    icon: Zap,
+    cta: "Ship a drop",
+    href: "/create",
+  },
+  {
+    title: "Preview wall",
+    desc: "Upload a sample photo to see how your frame feels on profile pics.",
+    icon: Camera,
+    cta: "Try a preview",
+    href: "/create",
+  },
+];
+
+const templateShowcase = [
+  { title: "Tech Conference", tag: "Clean grid", accent: "from-sky-400/40 to-blue-500/20" },
+  { title: "Community Meetup", tag: "Rounded mask", accent: "from-emerald-400/40 to-teal-500/20" },
+  { title: "Product Drop", tag: "Bold headline", accent: "from-purple-400/40 to-pink-500/20" },
 ];
 
 const Homepage = () => {
@@ -120,7 +156,7 @@ const Homepage = () => {
             </button>
             
             <Link to="/create" className="md:block hidden">
-                <Button size="sm" className="rounded-full px-6 shadow-lg shadow-primary/20">Create Campaign</Button>
+                <Button size="sm" className="rounded-sm px-6 h-12 shadow-lg shadow-primary/20">Create Campaign</Button>
             </Link>
           </div>
         </div>
@@ -207,6 +243,56 @@ const Homepage = () => {
         </motion.div>
       </section>
 
+      {/* MINIMAL OVERVIEW */}
+      <section className="max-w-6xl mx-auto px-6 pb-12 md:pb-16">
+        <div className="grid md:grid-cols-3 gap-4 md:gap-6">
+          {stats.map((item, i) => (
+            <div
+              key={item.label}
+              className="p-5 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm flex items-center justify-between"
+            >
+              <div>
+                <p className="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">{item.label}</p>
+                <p className="text-2xl md:text-3xl font-semibold mt-2 text-slate-900 dark:text-white">{item.value}</p>
+              </div>
+              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                {item.trend}
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {/* QUICK ACTIONS */}
+      <section className="max-w-6xl mx-auto px-6 pb-12 md:pb-20">
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div>
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Workspace</p>
+            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 dark:text-white">Minimal actions</h2>
+          </div>
+          <div className="hidden md:flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+            <ShieldCheck className="w-4 h-4" />
+            Private by default. Share when ready.
+          </div>
+        </div>
+
+        <div className="grid md:grid-cols-3 gap-4 md:gap-6">
+          {quickActions.map((item) => (
+            <Link key={item.title} to={item.href} className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 hover:border-primary/40 hover:-translate-y-1 transition-all duration-200">
+              <div className="flex items-start justify-between gap-2 mb-6">
+                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-primary" />
+              </div>
+              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">{item.title}</h3>
+              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-4">{item.desc}</p>
+              <span className="text-sm font-semibold text-primary group-hover:underline">{item.cta}</span>
+            </Link>
+          ))}
+        </div>
+      </section>
+
       {/* FEATURES */}
       <section className="bg-slate-50/50 dark:bg-white/5 border-y border-slate-200 dark:border-white/5 py-24 transition-colors duration-300">
         <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
@@ -227,6 +313,53 @@ const Homepage = () => {
                 </div>
             </FadeIn>
           ))}
+        </div>
+      </section>
+
+      {/* TEMPLATES */}
+      <section className="py-20 bg-white dark:bg-slate-950 transition-colors duration-300">
+        <div className="max-w-6xl mx-auto px-6 space-y-10">
+          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+            <div>
+              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-2">Minimal presets</p>
+              <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Starter frames to remix</h2>
+              <p className="text-slate-500 dark:text-slate-400 mt-3 max-w-2xl">
+                Pick a calm base, swap your brand colors, and publish a link without designing from scratch.
+              </p>
+            </div>
+            <Link to="/create">
+              <Button variant="ghost" className="rounded-full border border-slate-200 dark:border-slate-800 px-5">
+                Browse library
+                <ArrowRight className="w-4 h-4 ml-2" />
+              </Button>
+            </Link>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {templateShowcase.map((template, i) => (
+              <FadeIn key={template.title} delay={i * 0.05}>
+                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-sm hover:-translate-y-1 transition-all duration-200">
+                  <div className={`aspect-[4/5] bg-gradient-to-br ${template.accent} relative`}>
+                    <div className="absolute inset-6 rounded-2xl bg-white/80 dark:bg-black/40 backdrop-blur-sm border border-white/50 dark:border-white/10"></div>
+                    <div className="absolute inset-12 rounded-2xl border border-dashed border-white/40 dark:border-white/20"></div>
+                    <div className="absolute bottom-6 left-6 px-3 py-2 rounded-full bg-white/90 dark:bg-black/60 text-xs font-medium text-slate-700 dark:text-slate-200">
+                      {template.tag}
+                    </div>
+                  </div>
+                  <div className="p-5 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-slate-500 dark:text-slate-400">Template</p>
+                      <p className="font-semibold text-slate-900 dark:text-white">{template.title}</p>
+                    </div>
+                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
+                      <Globe2 className="w-4 h-4" />
+                      Public link ready
+                    </div>
+                  </div>
+                </div>
+              </FadeIn>
+            ))}
+          </div>
         </div>
       </section>
 
@@ -279,6 +412,44 @@ const Homepage = () => {
         </div>
       </section>
 
+      {/* TOOLKIT */}
+      <section className="py-20 bg-slate-50/50 dark:bg-white/5 border-y border-slate-200 dark:border-white/5 transition-colors duration-300">
+        <div className="max-w-6xl mx-auto px-6 space-y-10">
+          <FadeIn>
+            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+              <div>
+                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-2">Calm toolkit</p>
+                <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Everything you need, nothing extra</h2>
+                <p className="text-slate-500 dark:text-slate-400 mt-3 max-w-2xl">
+                  A focused set of controls to keep teams shipping fast while the UI stays quiet.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-white/70 dark:bg-slate-900/50 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-800">
+                <Sparkles className="w-4 h-4 text-primary" />
+                Minimal by default
+              </div>
+            </div>
+          </FadeIn>
+
+          <div className="grid md:grid-cols-4 gap-4 md:gap-6">
+            {[
+              { title: "Color-safe overlays", icon: Palette, copy: "Stay on-brand with live color tokens and contrast hints." },
+              { title: "Realtime preview", icon: Clock3, copy: "See the DP update with every slider change—no reloads." },
+              { title: "Share analytics", icon: BarChart3, copy: "Monitor clicks, renders, and shares in a clean panel." },
+              { title: "Secure by default", icon: ShieldCheck, copy: "Links are private until you publish, with revocable URLs." },
+            ].map((item) => (
+              <div key={item.title} className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 hover:-translate-y-1 transition-all duration-200">
+                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 w-fit mb-4">
+                  <item.icon className="w-5 h-5" />
+                </div>
+                <h3 className="font-semibold text-slate-900 dark:text-white mb-2">{item.title}</h3>
+                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{item.copy}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* TESTIMONIALS */}
       <section className="bg-slate-50/50 dark:bg-white/5 py-24 border-y border-slate-200 dark:border-white/5 transition-colors duration-300">
         <div className="max-w-6xl mx-auto px-6">
@@ -311,6 +482,34 @@ const Homepage = () => {
                     </div>
                 </div>
               </FadeIn>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* FAQ */}
+      <section className="py-20 bg-white dark:bg-slate-950 transition-colors duration-300">
+        <div className="max-w-5xl mx-auto px-6 space-y-8">
+          <div className="text-center space-y-3">
+            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Quick answers</p>
+            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">What people ask before launching</h2>
+          </div>
+          <div className="space-y-4">
+            {[
+              { q: "How fast can I publish a DP link?", a: "Most teams publish in under 2 minutes. Upload a frame, set the safe area, and hit share. We host the link for you." },
+              { q: "Do viewers need to sign up?", a: "No accounts required. They upload a photo, we render the DP in-browser, and they can download instantly." },
+              { q: "Can I remove a campaign after it goes live?", a: "Yes. Turn off or regenerate links anytime. Existing links respect your new setting immediately." },
+              { q: "Is there a free tier?", a: "You can launch personal or small community drops for free. Upgrading unlocks analytics, brand colors, and priority speed." },
+            ].map((item) => (
+              <details key={item.q} className="group border border-slate-200 dark:border-slate-800 rounded-2xl bg-white/70 dark:bg-slate-900/50 p-5 open:shadow-sm transition-all duration-200">
+                <summary className="flex items-center justify-between cursor-pointer text-slate-900 dark:text-white font-semibold">
+                  <span>{item.q}</span>
+                  <ArrowRight className="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" />
+                </summary>
+                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                  {item.a}
+                </p>
+              </details>
             ))}
           </div>
         </div>
@@ -382,6 +581,9 @@ const Homepage = () => {
              <a href="#" className="hover:text-white transition-colors">Instagram</a>
              <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
           </div>
+        </div>
+        <div className="text-white/10 bg-clip-text bg-gradient-to-r text-[28vw]" >
+            YourDP
         </div>
       </footer>
     </main>

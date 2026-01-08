@@ -1,3 +1,4 @@
+// src/hooks/useCanvas.ts
 import { useState, useCallback, useEffect } from 'react';
 import { CanvasElement, ShapeType } from '@/types/editor';
 
@@ -6,21 +7,20 @@ const generateId = () => Math.random().toString(36).substring(2, 11);
 export const useCanvas = () => {
   const [elements, setElements] = useState<CanvasElement[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 1080, height: 1080 });
+  const [canvasSize, setCanvasSize] = useState({ width: 1080, height: 1080 }); // <-- expose setter
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
 
-  // --- Auto adjust canvas size based on uploaded background image ---
+  // --- Auto adjust canvas size when backgroundImage changes (optional) ---
   useEffect(() => {
     if (!backgroundImage) return;
-
+    // You can keep this effect or rely on caller to set size.
     const img = new Image();
     img.src = backgroundImage;
     img.onload = () => {
-      setCanvasSize({
-        width: img.width,
-        height: img.height,
-      });
+      // If the image is different size than canvas, update canvas size optionally:
+      // setCanvasSize({ width: img.width, height: img.height });
+      // I leave commented: Editor now explicitly calls setCanvasSize on upload.
     };
   }, [backgroundImage]);
 
@@ -73,7 +73,7 @@ export const useCanvas = () => {
         newElement = {
           ...baseProps,
           type: 'text',
-          text: 'Your Text Here',
+          text: 'Your Text Here', // use `text` field (matches Editor expectations below)
           fontSize: 48,
           fontFamily: 'Inter',
           fontStyle: 'normal',
@@ -82,7 +82,7 @@ export const useCanvas = () => {
           stroke: '',
           strokeWidth: 0,
           width: 300,
-        };
+        } as CanvasElement;
         break;
       default:
         return;
@@ -158,7 +158,7 @@ export const useCanvas = () => {
     selectedId,
     setSelectedId,
     canvasSize,
-    setCanvasSize, // expose setCanvasSize so canvas can be manually adjusted if needed
+    setCanvasSize, // <-- expose setter so Editor can change canvas size on BG upload
     backgroundColor,
     setBackgroundColor,
     backgroundImage,

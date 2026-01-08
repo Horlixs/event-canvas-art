@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect } from 'react';
 import Konva from 'konva';
+import { Link } from 'react-router-dom';
 import { useCanvas } from '@/hooks/useCanvas';
 import { CanvasStage } from './CanvasStage';
 import { FloatingToolbar } from './FloatingToolbar';
@@ -38,12 +39,29 @@ export const Editor: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('properties');
   const [showGrid, setShowGrid] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
+  // Add small type guards near top of Editor.tsx (just after imports or inside component)
+type AnyEl = typeof elements extends (infer U)[] ? U : any;
+
+const isTextElement = (el: AnyEl): el is AnyEl & { type: 'text'; text?: string } => {
+  return (el as any)?.type === 'text';
+};
+
+const isImageElement = (el: AnyEl): el is AnyEl & { type: 'image'; src?: string } => {
+  return (el as any)?.type === 'image';
+};
+
+const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'polygon' } => {
+  const t = (el as any)?.type;
+  return t === 'rect' || t === 'circle' || t === 'polygon';
+};
+
 
   const {
     elements,
     selectedId,
     setSelectedId,
     canvasSize,
+    setCanvasSize,
     backgroundColor,
     setBackgroundColor,
     backgroundImage,
@@ -257,43 +275,57 @@ export const Editor: React.FC = () => {
 
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
-      const reader = new FileReader();
-      reader.onload = (ev) => setBackgroundImage(ev.target?.result as string);
-      reader.readAsDataURL(file);
-    }
+    if (!file) return;
+  
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const src = ev.target?.result as string;
+      const img = new Image();
+      img.onload = () => {
+        // Resize canvas to match image
+        setCanvasSize({ width: img.width, height: img.height });
+        setBackgroundImage(src);
+  
+        // Optional: fit to screen after updating size
+        setTimeout(() => fitToScreen(), 50);
+      };
+      img.src = src;
+    };
+    reader.readAsDataURL(file);
   };
+  
+  
 
   return (
-    <div className="h-screen flex flex-col bg-neutral-50 dark:bg-neutral-950 text-neutral-900 dark:text-neutral-100 overflow-hidden font-sans">
+    <div className="h-screen flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden transition-colors duration-300">
       
       {/* --- HEADER --- */}
-      <header className="h-16 px-6 bg-white dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between shrink-0 z-50">
+      <header className="h-16 px-6 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 flex items-center justify-between shrink-0 z-50 transition-colors duration-300">
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm shadow-md">DP</div>
+          <Link to="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold">DP</div>
             <div>
-              <h1 className="text-sm font-bold leading-none">Draft</h1>
-              <span className="text-[10px] text-muted-foreground">Editing mode</span>
+              <h1 className="text-sm font-bold leading-none text-slate-900 dark:text-white">Editor</h1>
+              <span className="text-[10px] text-slate-500 dark:text-slate-400">Design mode</span>
             </div>
-          </div>
-          <div className="h-6 w-px bg-neutral-200 dark:bg-neutral-800 mx-2" />
+          </Link>
+          <div className="h-6 w-px bg-slate-200 dark:bg-white/10 mx-2" />
           <div className="flex items-center gap-1">
-             <Button variant="ghost" size="icon" className="h-8 w-8"><Undo className="w-4 h-4" /></Button>
-             <Button variant="ghost" size="icon" className="h-8 w-8"><Redo className="w-4 h-4" /></Button>
+             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-800"><Undo className="w-4 h-4" /></Button>
+             <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 dark:hover:bg-slate-800"><Redo className="w-4 h-4" /></Button>
              <Button variant={showGrid ? "secondary" : "ghost"} size="icon" className="h-8 w-8" onClick={() => setShowGrid(!showGrid)}>
                 <Grid className="w-4 h-4" />
              </Button>
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" className="hidden md:flex gap-2 h-8" onClick={handleDownload}>
+          <Button variant="outline" size="sm" className="hidden md:flex gap-2 h-10 rounded-sm border-slate-200 dark:border-slate-800" onClick={handleDownload}>
             <Download className="w-3.5 h-3.5" /> Export
           </Button>
-          <Button variant={isPreview ? "secondary" : "ghost"} size="sm" className="h-8 gap-2" onClick={() => setIsPreview(!isPreview)}>
+          <Button variant={isPreview ? "secondary" : "ghost"} size="sm" className="h-10 gap-2 rounded-sm" onClick={() => setIsPreview(!isPreview)}>
             <Eye className="w-3.5 h-3.5" /> <span className="hidden md:inline">Preview</span>
           </Button>
-          <Button onClick={handlePublish} disabled={isPublishing} size="sm" className="h-8 px-4 gap-2">
+          <Button onClick={handlePublish} disabled={isPublishing} size="sm" className="h-10 px-4 gap-2 rounded-sm shadow-lg shadow-primary/20">
             <Check className="w-3.5 h-3.5" /> {isPublishing ? 'Publishing...' : 'Publish'}
           </Button>
         </div>
@@ -305,7 +337,7 @@ export const Editor: React.FC = () => {
         {/* CENTER: Infinite Canvas Viewport */}
         <div 
             ref={viewportRef}
-            className="flex-1 relative bg-neutral-100 dark:bg-black/50 overflow-hidden"
+            className="flex-1 relative bg-slate-50 dark:bg-black/50 overflow-hidden transition-colors duration-300"
             style={{ 
                 cursor: isSpacePressed ? (isPanning ? 'grabbing' : 'grab') : 'default' 
             }}
@@ -387,22 +419,22 @@ export const Editor: React.FC = () => {
             {/* HUD / Info Overlay */}
             {!isPreview && (
                 <>
-                    <div className="absolute top-4 left-4 pointer-events-none text-[10px] text-muted-foreground z-40 bg-white/50 dark:bg-black/50 p-2 rounded backdrop-blur-sm">
+                    <div className="absolute top-4 left-4 pointer-events-none text-[12px] text-slate-500 dark:text-slate-400 z-40 bg-white/70 dark:bg-black/70 p-2 rounded-sm backdrop-blur-sm border border-slate-100 dark:border-white/10 shadow-xl">
                         {Math.round(camera.z * 100)}% | Scroll to Pan | Ctrl+Scroll to Zoom
                     </div>
 
-                    <div className="absolute bottom-6 right-6 flex items-center gap-1 bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-1.5 rounded-lg shadow-xl z-50">
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                            const newZ = Math.max(camera.z - 0.1, 0.1);
+                    <div className="absolute bottom-8 right-6 flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-white/10 p-2 rounded-lg shadow-xl z-50">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 hover:bg-primary dark:hover:bg-slate-800" onClick={() => {
+                            const newZ = Math.max(camera.z - 0.02, 0.02);
                             setCamera({...camera, z: newZ});
                         }}><ZoomOut className="w-3.5 h-3.5" /></Button>
-                        <span className="text-xs font-mono w-10 text-center select-none">{Math.round(camera.z * 100)}%</span>
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => {
-                            const newZ = Math.min(camera.z + 0.1, 5);
+                        <span className="text-xs font-mono w-10 text-center select-none text-slate-600 dark:text-slate-300">{Math.round(camera.z * 100)}%</span>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 hover:bg-primary dark:hover:bg-slate-800" onClick={() => {
+                            const newZ = Math.min(camera.z + 0.02, 5);
                             setCamera({...camera, z: newZ});
                         }}><ZoomIn className="w-3.5 h-3.5" /></Button>
-                        <div className="w-px h-4 bg-neutral-200 mx-1" />
-                        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={fitToScreen}><Maximize className="w-3.5 h-3.5" /></Button>
+                        <div className="w-px h-4 bg-slate-200 dark:bg-white/10 mx-1" />
+                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 hover:bg-primary dark:hover:bg-slate-800" onClick={fitToScreen}><Maximize className="w-3.5 h-3.5" /></Button>
                     </div>
 
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
@@ -423,13 +455,13 @@ export const Editor: React.FC = () => {
 
         {/* RIGHT: Sidebar */}
         {!isPreview && (
-          <div className="w-80 bg-white dark:bg-neutral-900 border-l border-neutral-200 dark:border-neutral-800 flex flex-col z-20 shadow-xl shrink-0">
-            <div className="flex p-2 border-b border-neutral-200 dark:border-neutral-800">
-                <button onClick={() => setActiveTab('properties')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-md transition-all", activeTab === 'properties' ? "bg-neutral-100 dark:bg-neutral-800 text-foreground" : "text-muted-foreground")}>
-                    <Settings className="w-3.5 h-3.5" /> Properties
+          <div className="w-80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-l border-slate-200 dark:border-white/10 flex flex-col z-20 shadow-xl shrink-0 transition-colors duration-300">
+            <div className="flex p-2 border-b border-slate-200 dark:border-white/10">
+                <button onClick={() => setActiveTab('properties')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-sm transition-all", activeTab === 'properties' ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white")}>
+                    <Settings className="w-3.5 h-6" /> Properties
                 </button>
-                <button onClick={() => setActiveTab('layers')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-md transition-all", activeTab === 'layers' ? "bg-neutral-100 dark:bg-neutral-800 text-foreground" : "text-muted-foreground")}>
-                    <Layers className="w-3.5 h-3.5" /> Layers
+                <button onClick={() => setActiveTab('layers')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-sm transition-all", activeTab === 'layers' ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white")}>
+                    <Layers className="w-3.5 h-6" /> Layers
                 </button>
             </div>
 
@@ -439,26 +471,26 @@ export const Editor: React.FC = () => {
                         {!selectedId ? (
                             <div className="space-y-6">
                                 <div className="space-y-3">
-                                    <label className="text-xs font-bold text-muted-foreground uppercase">Background</label>
+                                    <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Background</label>
                                     <div className="grid grid-cols-5 gap-2">
                                         {['#ffffff', '#000000', '#ef4444', '#3b82f6', '#22c55e', '#a855f7'].map(c => (
-                                            <button key={c} onClick={() => setBackgroundColor(c)} className={cn("w-full aspect-square rounded-full border", backgroundColor === c && "ring-2 ring-primary")} style={{ backgroundColor: c }} />
+                                            <button key={c} onClick={() => setBackgroundColor(c)} className={cn("w-full aspect-square rounded-full border-2 transition-all", backgroundColor === c ? "ring-2 ring-primary ring-offset-2" : "border-slate-200 dark:border-slate-800")} style={{ backgroundColor: c }} />
                                         ))}
-                                        <div className="relative w-full aspect-square rounded-full border bg-gradient-to-br from-gray-100 to-gray-400 overflow-hidden">
+                                        <div className="relative w-full aspect-square rounded-full border-2 border-slate-200 dark:border-slate-800 bg-gradient-to-br from-slate-100 to-slate-400 overflow-hidden">
                                             <input type="color" className="absolute inset-0 opacity-0 cursor-pointer" onChange={e => setBackgroundColor(e.target.value)} />
                                         </div>
                                     </div>
                                 </div>
                                 <div className="space-y-3">
                                     <div className="flex justify-between items-center">
-                                        <label className="text-xs font-bold text-muted-foreground uppercase">Image</label>
+                                        <label className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Image</label>
                                         {backgroundImage && <button onClick={() => setBackgroundImage(null)} className="text-[10px] text-red-500 hover:underline">Remove</button>}
                                     </div>
-                                    <div onClick={() => bgImageInputRef.current?.click()} className="h-32 border-2 border-dashed border-neutral-300 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary">
+                                    <div onClick={() => bgImageInputRef.current?.click()} className="h-32 border-2 border-dashed border-slate-300 dark:border-slate-800 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-primary transition-colors">
                                         {backgroundImage ? (
                                             <img src={backgroundImage} className="w-full h-full object-cover rounded-lg opacity-50" alt="bg" />
                                         ) : (
-                                            <> <ImagePlus className="w-6 h-6 text-muted-foreground" /> <span className="text-xs text-muted-foreground">Upload</span> </>
+                                            <> <ImagePlus className="w-6 h-6 text-slate-400 dark:text-slate-500" /> <span className="text-xs text-slate-500 dark:text-slate-400">Upload</span> </>
                                         )}
                                     </div>
                                 </div>
@@ -469,16 +501,37 @@ export const Editor: React.FC = () => {
                     </>
                 ) : (
                     <div className="space-y-2">
-                        {elements.length === 0 && <p className="text-center text-xs text-muted-foreground py-8">No layers.</p>}
+                        {elements.length === 0 && <p className="text-center text-xs text-slate-500 dark:text-slate-400 py-8">No layers.</p>}
                         {[...elements].reverse().map((el) => (
-                            <div key={el.id} onClick={() => setSelectedId(el.id)} className={cn("flex items-center gap-3 p-3 rounded-lg border cursor-pointer", selectedId === el.id ? "bg-primary/5 border-primary/20" : "bg-white border-transparent")}>
-                                <div className="w-8 h-8 rounded bg-neutral-100 flex items-center justify-center text-muted-foreground">
-                                    {el.type === 'text' && "T"} {el.type === 'image' && <ImagePlus className="w-3 h-3" />} {el.type === 'shape' && <div className="w-3 h-3 bg-current rounded-sm" />}
-                                </div>
-                                <span className="text-xs font-medium flex-1 truncate">{el.type === 'text' ? el.content : el.type}</span>
-                                <button onClick={(e) => { e.stopPropagation(); deleteElement(el.id); }} className="p-1 hover:text-red-500"><Trash2 className="w-3.5 h-3.5" /></button>
-                            </div>
-                        ))}
+  <div
+    key={el.id}
+    onClick={() => setSelectedId(el.id)}
+    className={cn(
+      "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+      selectedId === el.id ? "bg-primary/5 border-primary/20 dark:bg-primary/10" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+    )}
+  >
+    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
+      {isTextElement(el) && "T"}
+      {isImageElement(el) && <ImagePlus className="w-3 h-3" />}
+      {isShapeElement(el) && <div className="w-3 h-3 bg-current rounded-sm" />}
+    </div>
+
+    <span className="text-xs font-medium flex-1 truncate text-slate-900 dark:text-white">
+      {isTextElement(el) ? (el.text || "Text Layer") : isImageElement(el) ? "Image" : isShapeElement(el) ? `${(el as any).type} Layer` : "Layer"}
+    </span>
+
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        deleteElement(el.id);
+      }}
+      className="p-1 hover:text-red-500 transition-colors"
+    >
+      <Trash2 className="w-3.5 h-3.5" />
+    </button>
+  </div>
+))}
                     </div>
                 )}
             </div>
@@ -494,15 +547,15 @@ export const Editor: React.FC = () => {
       <AnimatePresence>
         {publishedUrl && (
           <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setPublishedUrl(null)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white p-6 rounded-2xl shadow-2xl max-w-md w-full m-4" onClick={e => e.stopPropagation()}>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} className="bg-white dark:bg-slate-900 p-6 rounded-2xl shadow-2xl max-w-md w-full m-4 border border-slate-200 dark:border-slate-800" onClick={e => e.stopPropagation()}>
                 <div className="flex flex-col items-center text-center space-y-4">
-                    <div className="bg-green-100 p-3 rounded-full"><Check className="w-8 h-8 text-green-600" /></div>
-                    <h2 className="text-xl font-bold">Published!</h2>
+                    <div className="bg-green-100 dark:bg-green-900/30 p-3 rounded-full"><Check className="w-8 h-8 text-green-600 dark:text-green-400" /></div>
+                    <h2 className="text-xl font-bold text-slate-900 dark:text-white">Published!</h2>
                     <div className="flex w-full gap-2">
-                        <input value={publishedUrl} readOnly className="flex-1 bg-neutral-100 px-3 py-2 rounded text-sm" />
-                        <Button onClick={() => { navigator.clipboard.writeText(publishedUrl); toast.success("Copied!"); }}><Copy className="w-4 h-4" /></Button>
+                        <input value={publishedUrl} readOnly className="flex-1 bg-slate-100 dark:bg-slate-800 px-3 py-2 rounded-lg text-sm border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white" />
+                        <Button onClick={() => { navigator.clipboard.writeText(publishedUrl); toast.success("Copied!"); }} className="rounded-lg"><Copy className="w-4 h-4" /></Button>
                     </div>
-                    <Button variant="outline" className="w-full" onClick={() => setPublishedUrl(null)}>Close</Button>
+                    <Button variant="outline" className="w-full rounded-lg border-slate-200 dark:border-slate-800" onClick={() => setPublishedUrl(null)}>Close</Button>
                 </div>
             </motion.div>
           </div>

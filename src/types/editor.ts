@@ -1,4 +1,11 @@
-export type ShapeType = 'rect' | 'circle' | 'polygon' | 'text';
+export type ShapeType = 'rect' | 'circle' | 'polygon' | 'text' | 'image';
+export type StrokePosition = 'inside' | 'center' | 'outside';
+
+export interface StrokeLayer {
+  color: string;
+  width: number;
+  position: StrokePosition;
+}
 
 export interface BaseElement {
   id: string;
@@ -7,6 +14,19 @@ export interface BaseElement {
   y: number;
   rotation: number;
   isPlaceholder: boolean;
+  strokes?: StrokeLayer[]; // works for all shapes
+  // Image placeholder data
+  placeholderImage?: string; // Base64 or URL of uploaded image
+  imageOffsetX?: number; // Image position within shape
+  imageOffsetY?: number;
+  imageScale?: number; // Image zoom within shape (default: 1)
+}
+
+export interface ImageElement extends BaseElement {
+  type: "image";
+  width: number;
+  height: number;
+  src: string;
 }
 
 export interface RectElement extends BaseElement {
@@ -15,16 +35,12 @@ export interface RectElement extends BaseElement {
   height: number;
   cornerRadius: number;
   fill: string;
-  stroke: string;
-  strokeWidth: number;
 }
 
 export interface CircleElement extends BaseElement {
   type: 'circle';
   radius: number;
   fill: string;
-  stroke: string;
-  strokeWidth: number;
 }
 
 export interface PolygonElement extends BaseElement {
@@ -32,8 +48,6 @@ export interface PolygonElement extends BaseElement {
   sides: number;
   radius: number;
   fill: string;
-  stroke: string;
-  strokeWidth: number;
 }
 
 export interface TextElement extends BaseElement {
@@ -44,20 +58,12 @@ export interface TextElement extends BaseElement {
   fontStyle: 'normal' | 'italic';
   fontWeight: number;
   fill: string;
-  stroke: string;
-  strokeWidth: number;
   width: number;
 }
 
-export type CanvasElement = RectElement | CircleElement | PolygonElement | TextElement;
-
-export interface TemplateData {
-  name: string;
-  width: number;
-  height: number;
-  elements: CanvasElement[];
-  backgroundColor: string;
-  backgroundImage?: string | null;
-}
-
-export type EditorMode = 'editor' | 'generator';
+export type CanvasElement =
+  | RectElement
+  | CircleElement
+  | PolygonElement
+  | TextElement
+  | ImageElement; // ← FIXED

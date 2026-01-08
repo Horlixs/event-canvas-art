@@ -1,49 +1,17 @@
-import React from 'react';
-import { Rect, Circle, RegularPolygon, Text, Group, Line } from 'react-konva';
+import React, { useRef, useEffect } from 'react';
+import { Group, Rect, Circle, Line, Text, Image as KonvaImage } from 'react-konva';
+import Konva from 'konva';
 import { CanvasElement } from '@/types/editor';
 import useImage from 'use-image';
-import Konva from 'konva';
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 
 interface ShapeRendererProps {
   element: CanvasElement;
-  isSelected: boolean;
-  onSelect: () => void;
-  onChange: (updates: Partial<CanvasElement>) => void;
+  isSelected?: boolean;
+  onSelect?: () => void;
+  onChange?: (updates: Partial<CanvasElement>) => void;
   userImage?: string;
   isGeneratorMode?: boolean;
 }
-
-const PlaceholderIcon: React.FC<{ x: number; y: number; size: number }> = ({ x, y, size }) => {
-  const iconSize = Math.min(size * 0.3, 60);
-  const strokeWidth = 2;
-  
-  return (
-    <Group x={x} y={y}>
-      {/* Upload arrow icon */}
-      <Line
-        points={[0, iconSize * 0.3, 0, -iconSize * 0.3]}
-        stroke="#9ca3af"
-        strokeWidth={strokeWidth}
-        lineCap="round"
-      />
-      <Line
-        points={[-iconSize * 0.2, -iconSize * 0.1, 0, -iconSize * 0.3, iconSize * 0.2, -iconSize * 0.1]}
-        stroke="#9ca3af"
-        strokeWidth={strokeWidth}
-        lineCap="round"
-        lineJoin="round"
-      />
-      {/* Base line */}
-      <Line
-        points={[-iconSize * 0.3, iconSize * 0.4, iconSize * 0.3, iconSize * 0.4]}
-        stroke="#9ca3af"
-        strokeWidth={strokeWidth}
-        lineCap="round"
-      />
-    </Group>
-  );
-};
 
 export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   element,
@@ -53,166 +21,408 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
   userImage,
   isGeneratorMode = false,
 }) => {
-  const [image] = useImage(userImage || '', 'anonymous');
+  const groupRef = useRef<Konva.Group>(null);
+  const imageRef = useRef<Konva.Image>(null);
+  
+  // Use placeholderImage if available, otherwise fall back to userImage (for generator mode)
+  const imageSrc = element.placeholderImage || userImage || '';
+  const [image] = useImage(imageSrc, 'anonymous');
+  
+  const hasImage = !!image && (element.isPlaceholder || !!userImage);
+  const imageOffsetX = element.imageOffsetX || 0;
+  const imageOffsetY = element.imageOffsetY || 0;
+  const imageScale = element.imageScale || 1;
 
-  const handleDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+  // Handle image drag within shape
+  const handleImageDragEnd = (e: Konva.KonvaEventObject<DragEvent>) => {
+    if (!onChange || !imageRef.current) return;
+    
+    const node = imageRef.current;
+    const newOffsetX = node.x();
+    const newOffsetY = node.y();
+    
     onChange({
-      x: e.target.x(),
-      y: e.target.y(),
+      imageOffsetX: newOffsetX,
+      imageOffsetY: newOffsetY,
     });
   };
 
-  const commonProps = {
-    x: element.x,
-    y: element.y,
-    rotation: element.rotation,
-    draggable: !isGeneratorMode,
-    onClick: onSelect,
-    onTap: onSelect,
-    onDragEnd: handleDragEnd,
+  // Handle image wheel zoom
+  const handleImageWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
+    if (!onChange || !imageRef.current) return;
+    e.evt.preventDefault();
+    
+    const delta = e.evt.deltaY > 0 ? 0.9 : 1.1;
+    const newScale = Math.max(0.5, Math.min(3, imageScale * delta));
+    
+    onChange({ imageScale: newScale });
   };
 
+  // Create clipping function based on shape type
+  const createClipFunc = (ctx: Konva.Context) => {
+    switch (element.type) {
+      case 'rect': {
+        const rectEl = element as any;
+        const cornerRadius = rectEl.cornerRadius || 0;
+        const width = rectEl.width;
+        const height = rectEl.height;
+        
+        ctx.beginPath();
+        if (cornerRadius > 0) {
+          ctx.roundRect(-width / 2, -height / 2, width, height, cornerRadius);
+        } else {
+          ctx.rect(-width / 2, -height / 2, width, height);
+        }
+        ctx.clip();
+        break;
+      }
+      case 'circle': {
+        const circleEl = element as any;
+        const radius = circleEl.radius || 0;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.clip();
+        break;
+      }
+      case 'polygon': {
+        const polyEl = element as any;
+        const sides = polyEl.sides || 3;
+        const radius = polyEl.radius || 0;
+        ctx.beginPath();
+        for (let i = 0; i < sides; i++) {
+          const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
+          const x = radius * Math.cos(angle);
+          const y = radius * Math.sin(angle);
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+        ctx.clip();
+        break;
+      }
+    }
+  };
 
+  // Render strokes (behind the shape)
+  const renderStrokes = () => {
+    if (!element.strokes || element.strokes.length === 0) return null;
 
-  // Placeholder icons are rendered separately in a different layer to not interfere with transforms
-  const showPlaceholderIcon = element.isPlaceholder && !isGeneratorMode;
+    return element.strokes.map((s, i) => {
+      switch (element.type) {
+        case 'rect': {
+          const rectEl = element as any;
+          return (
+            <Rect
+              key={`stroke-${i}`}
+              x={-rectEl.width / 2 - s.width / 2}
+              y={-rectEl.height / 2 - s.width / 2}
+              width={rectEl.width + s.width}
+              height={rectEl.height + s.width}
+              fill={s.color}
+              listening={false}
+            />
+          );
+        }
+        case 'circle': {
+          const circleEl = element as any;
+          return (
+            <Circle
+              key={`stroke-${i}`}
+              x={0}
+              y={0}
+              radius={(circleEl.radius || 0) + s.width / 2}
+              fill={s.color}
+              listening={false}
+            />
+          );
+        }
+        case 'polygon': {
+          const polyEl = element as any;
+          const sides = polyEl.sides || 3;
+          const radius = (polyEl.radius || 0) + s.width / 2;
+          const points = Array.from({ length: sides }, (_, idx) => {
+            const angle = (Math.PI * 2 * idx) / sides - Math.PI / 2;
+            return [
+              radius * Math.cos(angle),
+              radius * Math.sin(angle),
+            ];
+          }).flat();
+          return (
+            <Line
+              key={`stroke-${i}`}
+              points={points}
+              closed
+              fill={s.color}
+              listening={false}
+            />
+          );
+        }
+        default:
+          return null;
+      }
+    });
+  };
 
-  switch (element.type) {
-    case 'rect': {
-      const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
-      
-      // Calculate scale to cover the shape
-      const scaleX = shouldUseImage ? element.width / image.width : 1;
-      const scaleY = shouldUseImage ? element.height / image.height : 1;
-      
-      // The pattern is drawn from (0,0) of the shape's local coordinates
-      // Since we use offset, the shape's local (0,0) is at its center
-      // We need to shift the pattern so the image center aligns with shape center
-      const patternOffsetX = shouldUseImage ? (image.width * scaleX) / 2 : 0;
-      const patternOffsetY = shouldUseImage ? (image.height * scaleY) / 2 : 0;
-      
-      return (
-        <>
+  // Render the main shape container
+  const renderShape = () => {
+    switch (element.type) {
+      case 'rect': {
+        const rectEl = element as any;
+        return (
           <Rect
-            {...commonProps}
-            width={element.width}
-            height={element.height}
-            offsetX={element.width / 2}
-            offsetY={element.height / 2}
-            cornerRadius={element.cornerRadius}
-            fill={shouldUseImage ? undefined : element.fill}
-            fillPatternImage={shouldUseImage ? image : undefined}
-            fillPatternScaleX={scaleX}
-            fillPatternScaleY={scaleY}
-            fillPatternOffsetX={patternOffsetX}
-            fillPatternOffsetY={patternOffsetY}
-            stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
-            strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
-            dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
-            name="element"
-            id={element.id}
+            x={-rectEl.width / 2}
+            y={-rectEl.height / 2}
+            width={rectEl.width}
+            height={rectEl.height}
+            cornerRadius={rectEl.cornerRadius || 0}
+            fill={hasImage ? 'transparent' : rectEl.fill}
+            stroke={rectEl.stroke}
+            strokeWidth={rectEl.strokeWidth || 0}
+            listening={!isGeneratorMode}
+            onClick={onSelect}
+            onTap={onSelect}
           />
-          {showPlaceholderIcon && (
-            <PlaceholderIcon x={element.x} y={element.y} size={Math.min(element.width, element.height)} />
-          )}
-        </>
-      );
-    }
-
-    case 'circle': {
-      const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
-      const diameter = element.radius * 2;
-      const scaleX = shouldUseImage ? diameter / image.width : 1;
-      const scaleY = shouldUseImage ? diameter / image.height : 1;
-      
-      // Center the pattern within the circle
-      const patternOffsetX = shouldUseImage ? (image.width * scaleX) / 2 : 0;
-      const patternOffsetY = shouldUseImage ? (image.height * scaleY) / 2 : 0;
-      
-      return (
-        <>
+        );
+      }
+      case 'circle': {
+        const circleEl = element as any;
+        return (
           <Circle
-            {...commonProps}
-            radius={element.radius}
-            fill={shouldUseImage ? undefined : element.fill}
-            fillPatternImage={shouldUseImage ? image : undefined}
-            fillPatternScaleX={scaleX}
-            fillPatternScaleY={scaleY}
-            fillPatternOffsetX={patternOffsetX}
-            fillPatternOffsetY={patternOffsetY}
-            stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
-            strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
-            dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
-            name="element"
-            id={element.id}
+            x={0}
+            y={0}
+            radius={circleEl.radius}
+            fill={hasImage ? 'transparent' : circleEl.fill}
+            stroke={circleEl.stroke}
+            strokeWidth={circleEl.strokeWidth || 0}
+            listening={!isGeneratorMode}
+            onClick={onSelect}
+            onTap={onSelect}
           />
-          {showPlaceholderIcon && (
-            <PlaceholderIcon x={element.x} y={element.y} size={diameter} />
-          )}
-        </>
-      );
-    }
-
-    case 'polygon': {
-      const shouldUseImage = element.isPlaceholder && isGeneratorMode && image;
-      const diameter = element.radius * 2;
-      const scaleX = shouldUseImage ? diameter / image.width : 1;
-      const scaleY = shouldUseImage ? diameter / image.height : 1;
-      
-      // Center the pattern within the polygon
-      const patternOffsetX = shouldUseImage ? (image.width * scaleX) / 2 : 0;
-      const patternOffsetY = shouldUseImage ? (image.height * scaleY) / 2 : 0;
-      
-      return (
-        <>
-          <RegularPolygon
-            {...commonProps}
-            sides={element.sides}
-            radius={element.radius}
-            fill={shouldUseImage ? undefined : element.fill}
-            fillPatternImage={shouldUseImage ? image : undefined}
-            fillPatternScaleX={scaleX}
-            fillPatternScaleY={scaleY}
-            fillPatternOffsetX={patternOffsetX}
-            fillPatternOffsetY={patternOffsetY}
-            stroke={element.isPlaceholder && !isGeneratorMode ? '#6366f1' : element.stroke}
-            strokeWidth={element.isPlaceholder && !isGeneratorMode ? 2 : element.strokeWidth}
-            dash={element.isPlaceholder && !isGeneratorMode ? [10, 5] : undefined}
-            name="element"
-            id={element.id}
+        );
+      }
+      case 'polygon': {
+        const polyEl = element as any;
+        const sides = polyEl.sides || 3;
+        const radius = polyEl.radius || 0;
+        const points = Array.from({ length: sides }, (_, i) => {
+          const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
+          return [
+            radius * Math.cos(angle),
+            radius * Math.sin(angle),
+          ];
+        }).flat();
+        return (
+          <Line
+            points={points}
+            closed
+            fill={hasImage ? 'transparent' : polyEl.fill}
+            stroke={polyEl.stroke}
+            strokeWidth={polyEl.strokeWidth || 0}
+            listening={!isGeneratorMode}
+            onClick={onSelect}
+            onTap={onSelect}
           />
-          {showPlaceholderIcon && (
-            <PlaceholderIcon x={element.x} y={element.y} size={diameter} />
-          )}
-        </>
-      );
+        );
+      }
+      case 'text': {
+        const textEl = element as any;
+        return (
+          <Text
+            x={-textEl.width / 2}
+            y={-textEl.fontSize / 2}
+            text={textEl.text}
+            fontSize={textEl.fontSize}
+            fontFamily={textEl.fontFamily}
+            fontStyle={textEl.fontStyle}
+            fontWeight={textEl.fontWeight}
+            fill={textEl.fill}
+            width={textEl.width}
+            align="center"
+            verticalAlign="middle"
+            listening={!isGeneratorMode}
+            onClick={onSelect}
+            onTap={onSelect}
+          />
+        );
+      }
+      default:
+        return null;
+    }
+  };
+
+  // Render image inside shape (only for placeholders with images)
+  const renderImage = () => {
+    if (!hasImage || !image) return null;
+
+    // Calculate image dimensions to fill shape
+    let imageWidth = 0;
+    let imageHeight = 0;
+    
+    switch (element.type) {
+      case 'rect': {
+        const rectEl = element as any;
+        imageWidth = rectEl.width;
+        imageHeight = rectEl.height;
+        break;
+      }
+      case 'circle': {
+        const circleEl = element as any;
+        const diameter = (circleEl.radius || 0) * 2;
+        imageWidth = diameter;
+        imageHeight = diameter;
+        break;
+      }
+      case 'polygon': {
+        const polyEl = element as any;
+        const diameter = (polyEl.radius || 0) * 2;
+        imageWidth = diameter;
+        imageHeight = diameter;
+        break;
+      }
+      default:
+        return null;
     }
 
-    case 'text': {
-      // Konva uses combined fontStyle string: "italic bold" or just "bold" or "italic" or "normal"
-      const fontStyleStr = element.fontStyle === 'italic' ? 'italic' : '';
-      const fontWeightStr = element.fontWeight >= 700 ? 'bold' : element.fontWeight <= 300 ? '300' : '';
-      const combinedStyle = [fontStyleStr, fontWeightStr].filter(Boolean).join(' ') || 'normal';
-      
-      return (
-        <Text
-          {...commonProps}
-          text={element.text}
-          fontSize={element.fontSize}
-          fontFamily={element.fontFamily}
-          fontStyle={combinedStyle}
-          fill={element.fill}
-          stroke={element.stroke}
-          strokeWidth={element.strokeWidth}
-          width={element.width}
-          wrap="word"
-          name="element"
-          id={element.id}
-        />
-      );
-    }
+    return (
+      <KonvaImage
+        ref={imageRef}
+        image={image}
+        x={imageOffsetX}
+        y={imageOffsetY}
+        width={imageWidth * imageScale}
+        height={imageHeight * imageScale}
+        draggable={!isGeneratorMode && isSelected}
+        onDragEnd={handleImageDragEnd}
+        onWheel={handleImageWheel}
+        listening={!isGeneratorMode && isSelected}
+      />
+    );
+  };
 
-    default:
-      return null;
+  // For text elements, render directly without grouping
+  if (element.type === 'text') {
+    return (
+      <Group
+        ref={groupRef}
+        id={element.id}
+        x={element.x}
+        y={element.y}
+        rotation={element.rotation}
+        draggable={!isGeneratorMode}
+        onClick={onSelect}
+        onTap={onSelect}
+      >
+        {renderStrokes()}
+        {renderShape()}
+      </Group>
+    );
   }
+
+  // Calculate bounding box for the shape (for Transformer)
+  const getBoundingBox = () => {
+    switch (element.type) {
+      case 'rect': {
+        const rectEl = element as any;
+        return {
+          width: rectEl.width,
+          height: rectEl.height,
+          x: -rectEl.width / 2,
+          y: -rectEl.height / 2,
+        };
+      }
+      case 'circle': {
+        const circleEl = element as any;
+        const diameter = (circleEl.radius || 0) * 2;
+        return {
+          width: diameter,
+          height: diameter,
+          x: -diameter / 2,
+          y: -diameter / 2,
+        };
+      }
+      case 'polygon': {
+        const polyEl = element as any;
+        const diameter = (polyEl.radius || 0) * 2;
+        return {
+          width: diameter,
+          height: diameter,
+          x: -diameter / 2,
+          y: -diameter / 2,
+        };
+      }
+      default:
+        return { width: 100, height: 100, x: -50, y: -50 };
+    }
+  };
+
+  const bbox = getBoundingBox();
+
+  // For shape elements with image placeholders, use clipping
+  return (
+    <Group
+      ref={groupRef}
+      id={element.id}
+      x={element.x}
+      y={element.y}
+      rotation={element.rotation}
+      draggable={!isGeneratorMode}
+      onClick={onSelect}
+      onTap={onSelect}
+    >
+      {/* Invisible rect for Transformer to use for sizing - must be first child */}
+      <Rect
+        name="transformer-target"
+        x={bbox.x}
+        y={bbox.y}
+        width={bbox.width}
+        height={bbox.height}
+        fill="transparent"
+        listening={false}
+        perfectDrawEnabled={false}
+        hitStrokeWidth={0}
+      />
+      
+      {/* Strokes rendered behind */}
+      {renderStrokes()}
+      
+      {/* Clipped group for image + shape */}
+      <Group clipFunc={createClipFunc}>
+        {/* Image inside (if present) */}
+        {renderImage()}
+        
+        {/* Shape container (transparent if has image) */}
+        {renderShape()}
+      </Group>
+      
+      {/* Placeholder indicator when no image */}
+      {element.isPlaceholder && !hasImage && (
+        <Group opacity={0.4}>
+          <Rect
+            x={bbox.x}
+            y={bbox.y}
+            width={bbox.width}
+            height={bbox.height}
+            fill="#f3f4f6"
+            stroke="#9ca3af"
+            strokeWidth={2}
+            dash={[8, 4]}
+            listening={false}
+          />
+          <Text
+            x={0}
+            y={0}
+            text="📷 Click to upload"
+            fontSize={14}
+            fontFamily="Inter"
+            fill="#6b7280"
+            align="center"
+            verticalAlign="middle"
+            offsetX={50}
+            offsetY={7}
+            listening={false}
+          />
+        </Group>
+      )}
+    </Group>
+  );
 };
