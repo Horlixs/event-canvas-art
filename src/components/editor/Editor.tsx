@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useState, useEffect } from 'react';
+import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import Konva from 'konva';
 import { Link } from 'react-router-dom';
 import { useCanvas } from '@/hooks/useCanvas';
@@ -9,14 +9,30 @@ import { toast } from 'sonner';
 import { 
   ImagePlus, Copy, Layers, Settings, 
   ZoomIn, ZoomOut, Grid, Eye, Download, Check, 
-  Undo, Redo, Maximize, Trash2, MousePointer2
+  Undo, Redo, Maximize, Trash2
 } from 'lucide-react';
 import { publishTemplate } from '@/lib/templates';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+// IMPORTS: Ensure all sub-types are imported from your types file
+import { 
+  CanvasElement, 
+  TextElement, 
+  ImageElement, 
+  RectElement, 
+  CircleElement, 
+  PolygonElement, 
+  TemplateData 
+} from '@/types/editor';
 
 type SidebarTab = 'properties' | 'layers';
+
+// --- TYPE GUARDS ---
+const isTextElement = (el: CanvasElement): el is TextElement => el.type === 'text';
+const isImageElement = (el: CanvasElement): el is ImageElement => el.type === 'image';
+const isShapeElement = (el: CanvasElement): el is (RectElement | CircleElement | PolygonElement) => 
+  ['rect', 'circle', 'polygon'].includes(el.type);
 
 export const Editor: React.FC = () => {
   const stageRef = useRef<Konva.Stage>(null);
@@ -29,7 +45,6 @@ export const Editor: React.FC = () => {
   const [isPanning, setIsPanning] = useState(false);
   const [isSpacePressed, setIsSpacePressed] = useState(false);
   
-  // Refs for drag logic
   const lastMousePos = useRef({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
 
@@ -39,22 +54,6 @@ export const Editor: React.FC = () => {
   const [activeTab, setActiveTab] = useState<SidebarTab>('properties');
   const [showGrid, setShowGrid] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
-  // Add small type guards near top of Editor.tsx (just after imports or inside component)
-type AnyEl = typeof elements extends (infer U)[] ? U : any;
-
-const isTextElement = (el: AnyEl): el is AnyEl & { type: 'text'; text?: string } => {
-  return (el as any)?.type === 'text';
-};
-
-const isImageElement = (el: AnyEl): el is AnyEl & { type: 'image'; src?: string } => {
-  return (el as any)?.type === 'image';
-};
-
-const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'polygon' } => {
-  const t = (el as any)?.type;
-  return t === 'rect' || t === 'circle' || t === 'polygon';
-};
-
 
   const {
     elements,
@@ -78,7 +77,10 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
 
   const selectedElement = getSelectedElement();
 
-  // --- BOUNDARY LOGIC (Prevent getting lost) ---
+  // Memoize reversed elements for Layers panel performance
+  const reversedElements = useMemo(() => [...elements].reverse(), [elements]);
+
+  // --- BOUNDARY LOGIC ---
   const clampCamera = (x: number, y: number, z: number) => {
     if (!viewportRef.current) return { x, y };
 
@@ -86,16 +88,10 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
     const vpH = viewportRef.current.clientHeight;
     const artW = canvasSize.width * z;
     const artH = canvasSize.height * z;
-
-    // Margins: How much of the canvas must remain visible? (e.g., 100px)
     const margin = 100;
 
-    // Calculate Limits
-    // The right edge of canvas (x + artW) cannot be less than margin
-    // The left edge of canvas (x) cannot be greater than viewport width - margin
     const minX = margin - artW; 
     const maxX = vpW - margin;
-    
     const minY = margin - artH;
     const maxY = vpH - margin;
 
@@ -122,14 +118,12 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
     setCamera({ x: newX, y: newY, z: newZoom });
   }, [canvasSize]);
 
-  // Initial fit
   useEffect(() => {
     setTimeout(fitToScreen, 100);
   }, [fitToScreen]);
 
-  // --- MOUSE WHEEL LOGIC (Zoom vs Scroll) ---
+  // --- MOUSE WHEEL LOGIC ---
   const handleWheel = (e: React.WheelEvent) => {
-    // 1. ZOOMING (Ctrl + Wheel OR Pinch)
     if (e.ctrlKey || e.metaKey) {
         e.preventDefault();
         const zoomSensitivity = 0.001;
@@ -142,46 +136,34 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
 
-        // Zoom towards mouse pointer
         const worldX = (mouseX - camera.x) / camera.z;
         const worldY = (mouseY - camera.y) / camera.z;
 
         let newCameraX = mouseX - worldX * newZoom;
         let newCameraY = mouseY - worldY * newZoom;
 
-        // Apply Clamping
         const clamped = clampCamera(newCameraX, newCameraY, newZoom);
         setCamera({ x: clamped.x, y: clamped.y, z: newZoom });
-    } 
-    // 2. PANNING (Regular Scroll)
-    else {
-        // e.deltaX handles Shift+Wheel horizontal scrolling automatically in most browsers
-        // e.deltaY handles vertical
+    } else {
         const newX = camera.x - e.deltaX; 
         const newY = camera.y - e.deltaY;
-
-        // Apply Clamping
         const clamped = clampCamera(newX, newY, camera.z);
         setCamera(prev => ({ ...prev, x: clamped.x, y: clamped.y }));
     }
   };
 
-  // --- DRAG / PAN LOGIC ---
+  // --- MOUSE EVENTS ---
   const handleMouseDown = (e: React.MouseEvent) => {
-    // Only trigger Pan if Space is held OR Middle Mouse Button
     if (e.button === 1 || isSpacePressed) {
       setIsPanning(true);
       lastMousePos.current = { x: e.clientX, y: e.clientY };
-      e.preventDefault(); // Stop text selection
+      e.preventDefault(); 
       return;
     }
     
-    // If clicking on the "Void" (gray area), deselect
     if ((e.target as HTMLElement).id === "infinite-void-click-area") {
         clearSelection();
     }
-    
-    // Otherwise, we let the event pass through to Konva elements
     isDraggingRef.current = false;
   };
 
@@ -195,12 +177,7 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
 
       const clamped = clampCamera(newX, newY, camera.z);
       
-      setCamera(prev => ({ 
-          ...prev, 
-          x: clamped.x, 
-          y: clamped.y 
-      }));
-      
+      setCamera(prev => ({ ...prev, x: clamped.x, y: clamped.y }));
       lastMousePos.current = { x: e.clientX, y: e.clientY };
     }
   };
@@ -212,14 +189,13 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
   // --- KEYBOARD ---
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (['INPUT', 'TEXTAREA'].includes(document.activeElement?.tagName || '')) return;
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName || '')) return;
 
       if (e.code === 'Space' && !isSpacePressed) {
           setIsSpacePressed(true); 
-          e.preventDefault(); // Prevent page scroll on space
+          e.preventDefault(); 
       }
       
-      // Standard shortcuts
       if (e.key === 'Delete' || e.key === 'Backspace') selectedId && deleteElement(selectedId);
       if (e.key === 'Escape') { clearSelection(); setIsPreview(false); setPublishedUrl(null); }
       if ((e.metaKey || e.ctrlKey) && e.key === 'd') { e.preventDefault(); selectedId && duplicateElement(selectedId); }
@@ -241,7 +217,6 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
     };
   }, [selectedId, deleteElement, duplicateElement, clearSelection, fitToScreen, isSpacePressed]);
 
-  // Update tab when selection changes
   useEffect(() => {
     if (selectedId) setActiveTab('properties');
   }, [selectedId]);
@@ -263,8 +238,16 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
     if (elements.length === 0) { toast.error('Canvas is empty.'); return; }
     setIsPublishing(true);
     try {
-      const template = exportTemplate();
-      const result = await publishTemplate(template);
+      const baseTemplate = exportTemplate();
+      
+      // Ensure ID and Slug are present
+      const finalTemplate: TemplateData = {
+        id: crypto.randomUUID(),
+        slug: `design-${Date.now()}`,
+        ...baseTemplate,
+      };
+
+      const result = await publishTemplate(finalTemplate);
       if (result) {
         setPublishedUrl(`${window.location.origin}/dp/${result.slug}`);
         toast.success('Campaign published!');
@@ -273,6 +256,7 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
     finally { setIsPublishing(false); }
   }, [elements, exportTemplate]);
 
+  // THIS IS THE FUNCTION THAT WAS MISSING
   const handleBgUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -282,11 +266,8 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
       const src = ev.target?.result as string;
       const img = new Image();
       img.onload = () => {
-        // Resize canvas to match image
         setCanvasSize({ width: img.width, height: img.height });
         setBackgroundImage(src);
-  
-        // Optional: fit to screen after updating size
         setTimeout(() => fitToScreen(), 50);
       };
       img.src = src;
@@ -294,13 +275,11 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
     reader.readAsDataURL(file);
   };
   
-  
-
   return (
     <div className="h-screen flex flex-col bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 overflow-hidden transition-colors duration-300">
       
       {/* --- HEADER --- */}
-      <header className="h-16 px-6 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 flex items-center justify-between shrink-0 z-50 transition-colors duration-300">
+      <header className="h-16 px-6 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-b border-slate-200 dark:border-white/10 flex items-center justify-between shrink-0 z-50">
         <div className="flex items-center gap-4">
           <Link to="/" className="flex items-center gap-2">
             <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-primary-foreground text-sm font-bold">DP</div>
@@ -347,7 +326,6 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
             onMouseUp={handleMouseUp}
             onMouseLeave={handleMouseUp}
         >
-            
             {/* The Infinite World Wrapper */}
             <div 
                 style={{
@@ -361,24 +339,24 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
                     willChange: 'transform',
                 }}
             >
-                {/* 1. Background Grid (Purely Visual) */}
+                {/* 1. Background Grid */}
                 <div 
                    className="absolute pointer-events-none opacity-20 dark:opacity-20"
                    style={{
-                       left: -10000, top: -10000, right: -10000, bottom: -10000, // Massive background
+                       left: -10000, top: -10000, right: -10000, bottom: -10000, 
                        backgroundImage: 'radial-gradient(#64748b 1px, transparent 1px)',
                        backgroundSize: '40px 40px'
                    }} 
                 />
 
-                {/* 2. The Void Click Area (Invisible helper to catch clicks outside artboard) */}
+                {/* 2. The Void Click Area */}
                 <div 
-                   id="infinite-void-click-area"
-                   style={{
-                       position: 'absolute',
-                       left: -10000, top: -10000, right: -10000, bottom: -10000,
-                       zIndex: 0
-                   }}
+                    id="infinite-void-click-area"
+                    style={{
+                        position: 'absolute',
+                        left: -10000, top: -10000, right: -10000, bottom: -10000,
+                        zIndex: 0
+                    }}
                 />
 
                 {/* 3. The Physical Artboard */}
@@ -393,7 +371,6 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
                         backgroundColor: backgroundColor,
                         zIndex: 10
                     }}
-                    // Stop panning events from propagating when interacting with canvas
                     onMouseDown={(e) => !isSpacePressed && e.stopPropagation()} 
                 >
                     {backgroundImage && (
@@ -408,10 +385,9 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
                         onSelect={setSelectedId}
                         onUpdate={updateElement}
                         canvasSize={canvasSize}
-                        backgroundColor={backgroundColor}     // pass real background color
-                        backgroundImage={backgroundImage}     // pass uploaded image
+                        backgroundColor={backgroundColor}
+                        backgroundImage={backgroundImage}
                         stageRef={stageRef}
-                      
                     />
                 </div>
             </div>
@@ -424,17 +400,17 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
                     </div>
 
                     <div className="absolute bottom-8 right-6 flex items-center gap-1 bg-white/95 dark:bg-slate-900/95 backdrop-blur-md border border-slate-200 dark:border-white/10 p-2 rounded-lg shadow-xl z-50">
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 hover:bg-primary dark:hover:bg-slate-800" onClick={() => {
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                             const newZ = Math.max(camera.z - 0.02, 0.02);
                             setCamera({...camera, z: newZ});
                         }}><ZoomOut className="w-3.5 h-3.5" /></Button>
                         <span className="text-xs font-mono w-10 text-center select-none text-slate-600 dark:text-slate-300">{Math.round(camera.z * 100)}%</span>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 hover:bg-primary dark:hover:bg-slate-800" onClick={() => {
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => {
                             const newZ = Math.min(camera.z + 0.02, 5);
                             setCamera({...camera, z: newZ});
                         }}><ZoomIn className="w-3.5 h-3.5" /></Button>
                         <div className="w-px h-4 bg-slate-200 dark:bg-white/10 mx-1" />
-                        <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-slate-100 hover:bg-primary dark:hover:bg-slate-800" onClick={fitToScreen}><Maximize className="w-3.5 h-3.5" /></Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fitToScreen}><Maximize className="w-3.5 h-3.5" /></Button>
                     </div>
 
                     <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-40">
@@ -455,7 +431,7 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
 
         {/* RIGHT: Sidebar */}
         {!isPreview && (
-          <div className="w-80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-l border-slate-200 dark:border-white/10 flex flex-col z-20 shadow-xl shrink-0 transition-colors duration-300">
+          <div className="w-80 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl border-l border-slate-200 dark:border-white/10 flex flex-col z-20 shadow-xl shrink-0">
             <div className="flex p-2 border-b border-slate-200 dark:border-white/10">
                 <button onClick={() => setActiveTab('properties')} className={cn("flex-1 flex items-center justify-center gap-2 py-2 text-xs font-medium rounded-sm transition-all", activeTab === 'properties' ? "bg-slate-100 dark:bg-slate-800 text-slate-900 dark:text-white" : "text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white")}>
                     <Settings className="w-3.5 h-6" /> Properties
@@ -496,42 +472,42 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
                                 </div>
                             </div>
                         ) : (
-                            <PropertiesPanel element={selectedElement} onUpdate={(updates) => selectedId && updateElement(selectedId, updates)} onClose={clearSelection} />
+                            <PropertiesPanel element={selectedElement!} onUpdate={(updates) => selectedId && updateElement(selectedId, updates)} onClose={clearSelection} />
                         )}
                     </>
                 ) : (
                     <div className="space-y-2">
-                        {elements.length === 0 && <p className="text-center text-xs text-slate-500 dark:text-slate-400 py-8">No layers.</p>}
-                        {[...elements].reverse().map((el) => (
-  <div
-    key={el.id}
-    onClick={() => setSelectedId(el.id)}
-    className={cn(
-      "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
-      selectedId === el.id ? "bg-primary/5 border-primary/20 dark:bg-primary/10" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
-    )}
-  >
-    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
-      {isTextElement(el) && "T"}
-      {isImageElement(el) && <ImagePlus className="w-3 h-3" />}
-      {isShapeElement(el) && <div className="w-3 h-3 bg-current rounded-sm" />}
-    </div>
+                        {reversedElements.length === 0 && <p className="text-center text-xs text-slate-500 dark:text-slate-400 py-8">No layers.</p>}
+                        {reversedElements.map((el) => (
+                          <div
+                            key={el.id}
+                            onClick={() => setSelectedId(el.id)}
+                            className={cn(
+                              "flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all",
+                              selectedId === el.id ? "bg-primary/5 border-primary/20 dark:bg-primary/10" : "bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+                            )}
+                          >
+                            <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center text-slate-600 dark:text-slate-400">
+                              {isTextElement(el) && "T"}
+                              {isImageElement(el) && <ImagePlus className="w-3 h-3" />}
+                              {isShapeElement(el) && <div className="w-3 h-3 bg-current rounded-sm" />}
+                            </div>
 
-    <span className="text-xs font-medium flex-1 truncate text-slate-900 dark:text-white">
-      {isTextElement(el) ? (el.text || "Text Layer") : isImageElement(el) ? "Image" : isShapeElement(el) ? `${(el as any).type} Layer` : "Layer"}
-    </span>
+                            <span className="text-xs font-medium flex-1 truncate text-slate-900 dark:text-white">
+                              {isTextElement(el) ? (el.text || "Text Layer") : isImageElement(el) ? "Image" : "Layer"}
+                            </span>
 
-    <button
-      onClick={(e) => {
-        e.stopPropagation();
-        deleteElement(el.id);
-      }}
-      className="p-1 hover:text-red-500 transition-colors"
-    >
-      <Trash2 className="w-3.5 h-3.5" />
-    </button>
-  </div>
-))}
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteElement(el.id);
+                              }}
+                              className="p-1 hover:text-red-500 transition-colors"
+                            >
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        ))}
                     </div>
                 )}
             </div>
@@ -539,11 +515,10 @@ const isShapeElement = (el: AnyEl): el is AnyEl & { type: 'rect' | 'circle' | 'p
         )}
       </div>
 
-      {/* Hidden Inputs */}
       <input ref={bgImageInputRef} type="file" accept="image/*" className="hidden" onChange={handleBgUpload} />
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" />
 
-      {/* Published Modal (Optimized) */}
+      {/* Published Modal */}
       <AnimatePresence>
         {publishedUrl && (
           <div className="absolute inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm" onClick={() => setPublishedUrl(null)}>

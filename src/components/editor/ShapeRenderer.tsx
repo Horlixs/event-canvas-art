@@ -120,6 +120,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
               height={rectEl.height + s.width}
               fill={s.color}
               listening={false}
+              cornerRadius={rectEl.cornerRadius}
             />
           );
         }
@@ -226,10 +227,14 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       }
       case 'text': {
         const textEl = element as any;
+        // UPDATED: Text now uses offsetX/Y for proper alignment logic
         return (
           <Text
-            x={-textEl.width / 2}
-            y={-textEl.fontSize / 2}
+            x={0} // Group handles x/y
+            y={0}
+            offsetX={textEl.width / 2}
+            offsetY={textEl.fontSize / 2}
+            
             text={textEl.text}
             fontSize={textEl.fontSize}
             fontFamily={textEl.fontFamily}
@@ -237,8 +242,11 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             fontWeight={textEl.fontWeight}
             fill={textEl.fill}
             width={textEl.width}
-            align="center"
+            
+            // Connect the alignment prop
+            align={textEl.textAlign || 'center'}
             verticalAlign="middle"
+            
             listening={!isGeneratorMode}
             onClick={onSelect}
             onTap={onSelect}
@@ -299,7 +307,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
     );
   };
 
-  // For text elements, render directly without grouping
+  // For text elements, render directly without grouping (but include opacity)
   if (element.type === 'text') {
     return (
       <Group
@@ -311,6 +319,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
         draggable={!isGeneratorMode}
         onClick={onSelect}
         onTap={onSelect}
+        opacity={element.opacity ?? 1} // Added opacity
       >
         {renderStrokes()}
         {renderShape()}
@@ -368,6 +377,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       draggable={!isGeneratorMode}
       onClick={onSelect}
       onTap={onSelect}
+      opacity={element.opacity ?? 1}
     >
       {/* Invisible rect for Transformer to use for sizing - must be first child */}
       <Rect
@@ -396,7 +406,7 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
       
       {/* Placeholder indicator when no image */}
       {element.isPlaceholder && !hasImage && (
-        <Group opacity={0.4}>
+        <Group opacity={0.4} listening={false}>
           <Rect
             x={bbox.x}
             y={bbox.y}
@@ -406,7 +416,6 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             stroke="#9ca3af"
             strokeWidth={2}
             dash={[8, 4]}
-            listening={false}
           />
           <Text
             x={0}
@@ -417,9 +426,8 @@ export const ShapeRenderer: React.FC<ShapeRendererProps> = ({
             fill="#6b7280"
             align="center"
             verticalAlign="middle"
-            offsetX={50}
+            offsetX={50} // Rough center offset for the label
             offsetY={7}
-            listening={false}
           />
         </Group>
       )}

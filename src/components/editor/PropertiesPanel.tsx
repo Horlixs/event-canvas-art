@@ -1,7 +1,12 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ChevronDown, ImageIcon } from "lucide-react";
+import { 
+  X, ChevronDown, ImageIcon, 
+  AlignLeft, AlignCenter, AlignRight, 
+  Bold, Italic, Type 
+} from "lucide-react";
 import { CanvasElement } from "@/types/editor";
+import { cn } from "@/lib/utils";
 
 /* ---------------------- FONT LIST ---------------------- */
 const GOOGLE_FONTS = [
@@ -47,17 +52,6 @@ const Section: React.FC<{ title: string; children: React.ReactNode }> = ({
 };
 
 /* ---------------------- MINI INPUT COMPONENTS ---------------------- */
-const TextInput = ({ label, value, onChange }: any) => (
-  <div>
-    <span className="label-subtle">{label}</span>
-    <input
-      className="input-minimal w-full mt-1"
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-    />
-  </div>
-);
-
 const NumberInput = ({ label, value, onChange, min = 0, max }: any) => (
   <div>
     <span className="label-subtle">{label}</span>
@@ -76,11 +70,11 @@ const Slider = ({ label, value, min, max, step = 1, onChange }: any) => (
   <div>
     <div className="flex items-center justify-between">
       <span className="label-subtle">{label}</span>
-      <span className="text-xs">{value}</span>
+      <span className="text-xs text-slate-500">{value}</span>
     </div>
     <input
       type="range"
-      className="w-full"
+      className="w-full h-1.5 bg-slate-200 dark:bg-slate-700 rounded-lg appearance-none cursor-pointer mt-2"
       min={min}
       max={max}
       step={step}
@@ -94,15 +88,17 @@ const ColorInput = ({ label, value, onChange }: any) => (
   <div>
     <span className="label-subtle">{label}</span>
     <div className="flex gap-2 mt-1 items-center">
-      <input
-        type="color"
-        value={value || "#000000"}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-10 h-10 rounded-sm border cursor-pointer"
-      />
+      <div className="relative w-8 h-8 rounded-md overflow-hidden border border-slate-200 dark:border-slate-700">
+        <input
+            type="color"
+            value={value || "#000000"}
+            onChange={(e) => onChange(e.target.value)}
+            className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-[150%] h-[150%] p-0 m-0 cursor-pointer border-none"
+        />
+      </div>
       <input
         type="text"
-        className="input-minimal w-24"
+        className="input-minimal flex-1 uppercase"
         value={value || ""}
         onChange={(e) => onChange(e.target.value)}
       />
@@ -111,7 +107,7 @@ const ColorInput = ({ label, value, onChange }: any) => (
 );
 
 /* ---------------------- MAIN PANEL ---------------------- */
-export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
+export const PropertiesPanel = ({ element, onUpdate, onClose }: { element: CanvasElement, onUpdate: (attrs: Partial<CanvasElement>) => void, onClose: () => void }) => {
   if (!element) return null;
 
   return (
@@ -121,11 +117,16 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
         animate={{ opacity: 1, x: 0 }}
         exit={{ opacity: 0, x: 20 }}
         transition={{ duration: 0.3 }}
-        className="w-full h-full overflow-hidden flex flex-col"
+        className="w-full h-full overflow-hidden flex flex-col bg-white dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800"
       >
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-white/10 bg-slate-50/50 dark:bg-slate-900/50">
-          <h3 className="text-sm height-10 font-semibold capitalize text-slate-900 dark:text-white">{element.type} Properties</h3>
+          <div className="flex items-center gap-2">
+            <span className="p-1 rounded bg-slate-200 dark:bg-slate-800">
+                {element.type === 'text' ? <Type size={14}/> : <ImageIcon size={14}/>}
+            </span>
+            <h3 className="text-sm font-semibold capitalize text-slate-900 dark:text-white">{element.type}</h3>
+          </div>
           <button onClick={onClose} className="p-1.5 rounded-sm hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <X size={16} className="text-slate-500 dark:text-slate-400" />
           </button>
@@ -136,22 +137,28 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
 
           {/* POSITION */}
           <Section title="Position">
-            <NumberInput label="X" value={Math.round(element.x)} onChange={(x) => onUpdate({ x })} />
-            <NumberInput label="Y" value={Math.round(element.y)} onChange={(y) => onUpdate({ y })} />
-            <Slider label="Rotation" min={0} max={360} value={element.rotation} onChange={(rotation) => onUpdate({ rotation })} />
+            <div className="grid grid-cols-2 gap-3">
+                <NumberInput label="X" value={Math.round(element.x)} onChange={(x: number) => onUpdate({ x })} />
+                <NumberInput label="Y" value={Math.round(element.y)} onChange={(y: number) => onUpdate({ y })} />
+            </div>
+            <div className="mt-4">
+                <Slider label="Rotation" min={0} max={360} value={element.rotation} onChange={(rotation: number) => onUpdate({ rotation })} />
+            </div>
           </Section>
 
           {/* SIZE - RECT */}
           {element.type === "rect" && (
             <Section title="Size">
-              <NumberInput label="Width" min={10} value={element.width} onChange={(width) => onUpdate({ width })} />
-              <NumberInput label="Height" min={10} value={element.height} onChange={(height) => onUpdate({ height })} />
+              <div className="grid grid-cols-2 gap-3 mb-4">
+                <NumberInput label="Width" min={10} value={element.width} onChange={(width: number) => onUpdate({ width })} />
+                <NumberInput label="Height" min={10} value={element.height} onChange={(height: number) => onUpdate({ height })} />
+              </div>
               <Slider
                 label="Corner Radius"
                 min={0}
                 max={Math.min(element.width, element.height) / 2}
                 value={element.cornerRadius}
-                onChange={(cornerRadius) => onUpdate({ cornerRadius })}
+                onChange={(cornerRadius: number) => onUpdate({ cornerRadius })}
               />
             </Section>
           )}
@@ -159,27 +166,29 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
           {/* SIZE - CIRCLE */}
           {element.type === "circle" && (
             <Section title="Size">
-              <Slider label="Radius" min={10} max={400} value={element.radius} onChange={(radius) => onUpdate({ radius })} />
+              <Slider label="Radius" min={10} max={400} value={element.radius} onChange={(radius: number) => onUpdate({ radius })} />
             </Section>
           )}
 
           {/* POLYGON */}
           {element.type === "polygon" && (
             <Section title="Polygon">
-              <Slider label="Sides" min={3} max={12} value={element.sides} onChange={(sides) => onUpdate({ sides })} />
-              <Slider label="Radius" min={10} max={400} value={element.radius} onChange={(radius) => onUpdate({ radius })} />
+              <Slider label="Sides" min={3} max={12} value={element.sides} onChange={(sides: number) => onUpdate({ sides })} />
+              <Slider label="Radius" min={10} max={400} value={element.radius} onChange={(radius: number) => onUpdate({ radius })} />
             </Section>
           )}
 
-          {/* TEXT */}
+          {/* TEXT CONTROLS - UPDATED */}
           {element.type === "text" && (
-            <Section title="Text">
+            <Section title="Text Content">
               <textarea
-                className="input-minimal w-full h-20"
+                className="input-minimal w-full h-24 p-2 text-sm resize-none"
                 value={element.text}
                 onChange={(e) => onUpdate({ text: e.target.value })}
+                placeholder="Enter text here..."
               />
 
+              {/* Font Family */}
               <div>
                 <span className="label-subtle">Font Family</span>
                 <select
@@ -195,118 +204,191 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
                 </select>
               </div>
 
-              <Slider label="Font Size" min={12} max={200} value={element.fontSize} onChange={(fontSize) => onUpdate({ fontSize })} />
-              <Slider label="Max Width" min={50} max={700} value={element.width} onChange={(width) => onUpdate({ width })} />
+              {/* Style Controls Row */}
+              <div className="grid grid-cols-2 gap-3">
+                  {/* Weight & Style */}
+                  <div>
+                    <span className="label-subtle">Style</span>
+                    <div className="flex items-center gap-1 mt-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-md border border-slate-200 dark:border-slate-800">
+                        <button 
+                            onClick={() => onUpdate({ fontWeight: element.fontWeight === 700 || element.fontWeight === 'bold' ? 400 : 700 })}
+                            className={cn(
+                                "flex-1 p-1.5 rounded flex justify-center transition-colors",
+                                element.fontWeight === 700 || element.fontWeight === 'bold' ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-600"
+                            )}
+                            title="Bold"
+                        >
+                            <Bold size={16} />
+                        </button>
+                        <button 
+                            onClick={() => onUpdate({ fontStyle: element.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                            className={cn(
+                                "flex-1 p-1.5 rounded flex justify-center transition-colors",
+                                element.fontStyle === 'italic' ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-600"
+                            )}
+                            title="Italic"
+                        >
+                            <Italic size={16} />
+                        </button>
+                    </div>
+                  </div>
+
+                  {/* Alignment */}
+                  <div>
+                    <span className="label-subtle">Align</span>
+                    <div className="flex items-center gap-1 mt-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-md border border-slate-200 dark:border-slate-800">
+                        {([
+                            { val: 'left', Icon: AlignLeft },
+                            { val: 'center', Icon: AlignCenter },
+                            { val: 'right', Icon: AlignRight }
+                        ] as const).map(({ val, Icon }) => (
+                            <button
+                                key={val}
+                                onClick={() => onUpdate({ textAlign: val })}
+                                className={cn(
+                                    "flex-1 p-1.5 rounded flex justify-center transition-colors",
+                                    (element.textAlign || 'center') === val ? "bg-white dark:bg-slate-700 shadow-sm text-slate-900 dark:text-white" : "text-slate-400 hover:text-slate-600"
+                                )}
+                            >
+                                <Icon size={16} />
+                            </button>
+                        ))}
+                    </div>
+                  </div>
+              </div>
+
+              <div className="pt-2">
+                 <Slider label="Font Size" min={12} max={200} value={element.fontSize} onChange={(fontSize: number) => onUpdate({ fontSize })} />
+              </div>
+              <div className="pt-2">
+                 <Slider label="Maximum Width" min={50} max={800} value={element.width} onChange={(width: number) => onUpdate({ width })} />
+              </div>
             </Section>
           )}
 
-          {/* APPEARANCE */}
-{/* Colors + Stroke Controls */}
-<div className="panel-section space-y-4">
-  <h4 className="label-subtle">Appearance</h4>
+          {/* APPEARANCE (Common for all) */}
+{/* APPEARANCE */}
+<Section title="Appearance">
+              <div className="space-y-4">
+                {/* Opacity Slider */}
+                <Slider 
+                    label="Opacity" 
+                    min={0} 
+                    max={1} 
+                    step={0.05} 
+                    value={element.opacity ?? 1} 
+                    onChange={(opacity: number) => onUpdate({ opacity })} 
+                />
 
-  {/* Fill */}
-  <ColorInput
-    label="Fill"
-    value={element.fill}
-    onChange={(fill) => onUpdate({ fill })}
-  />
+                {/* Fill Color - Check ensures element is not an image before accessing .fill */}
+                {element.type !== 'image' && (
+                    <ColorInput
+                        label="Fill Color"
+                        value={element.fill}
+                        // We cast to 'any' here because partial updates to unions can be strict in TS
+                        onChange={(fill: string) => onUpdate({ fill } as any)}
+                    />
+                )}
 
-  {/* Stroke */}
-  <ColorInput
-    label="Stroke"
-    value={element.stroke}
-    onChange={(stroke) => onUpdate({ stroke })}
-  />
+                {/* Stroke Controls - Only for Shapes (Rect/Circle/Polygon) */}
+                {(element.type === 'rect' || element.type === 'circle' || element.type === 'polygon') && (
+                    <>
+                        <ColorInput
+                            label="Stroke Color"
+                            value={element.strokes?.[0]?.color} 
+                            onChange={(color: string) => {
+                                const current = element.strokes?.[0];
+                                const newStroke = { 
+                                    color, 
+                                    width: current?.width || 2, 
+                                    position: current?.position || 'center' 
+                                };
+                                onUpdate({ strokes: [newStroke as any] });
+                            }}
+                        />
 
-  {/* Stroke Width + Manual Input */}
-  {element.stroke && (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between">
-        <span className="label-subtle">Stroke Width</span>
-        <span className="text-sm text-muted-foreground">
-          {element.strokeWidth}px
-        </span>
-      </div>
-
-      <div className="flex items-center gap-3">
-        <input
-          type="number"
-          min={0}
-          max={50}
-          value={element.strokeWidth}
-          onChange={(e) => onUpdate({ strokeWidth: Number(e.target.value) })}
-          className="input-minimal w-20 text-right"
-        />
-
-        <input
-          type="range"
-          min={0}
-          max={50}
-          value={element.strokeWidth}
-          onChange={(e) => onUpdate({ strokeWidth: Number(e.target.value) })}
-          className="flex-1 h-1.5 bg-secondary rounded-full appearance-none cursor-pointer
-            [&::-webkit-slider-thumb]:appearance-none
-            [&::-webkit-slider-thumb]:w-4
-            [&::-webkit-slider-thumb]:h-4
-            [&::-webkit-slider-thumb]:rounded-full
-            [&::-webkit-slider-thumb]:bg-primary"
-        />
-      </div>
-    </div>
-  )}
-
-  {/* Stroke Position Selector */}
-  {element.stroke && (
-    <div className="space-y-2">
-      <label className="label-subtle">Stroke Position</label>
-      <select
-        value={element.strokePosition || "center"}
-        onChange={(e) => onUpdate({ strokePosition: e.target.value })}
-        className="select-minimal w-full"
-      >
-        <option value="inside">Inside</option>
-        <option value="center">Center</option>
-        <option value="outside">Outside</option>
-      </select>
-    </div>
-  )}
-</div>
+                        {element.strokes && element.strokes.length > 0 && (
+                            <div className="space-y-3 pt-2">
+                                <Slider 
+                                    label="Stroke Width" 
+                                    min={0} 
+                                    max={50} 
+                                    value={element.strokes[0].width} 
+                                    onChange={(width: number) => {
+                                        const newStrokes = [...element.strokes!];
+                                        newStrokes[0] = { ...newStrokes[0], width };
+                                        onUpdate({ strokes: newStrokes });
+                                    }}
+                                />
+                                
+                                <div>
+                                    <span className="label-subtle">Stroke Position</span>
+                                    <select
+                                        value={element.strokes[0].position || "center"}
+                                        onChange={(e) => {
+                                            const newStrokes = [...element.strokes!];
+                                            newStrokes[0] = { ...newStrokes[0], position: e.target.value as any };
+                                            onUpdate({ strokes: newStrokes });
+                                        }}
+                                        className="select-minimal w-full mt-1"
+                                    >
+                                        <option value="inside">Inside</option>
+                                        <option value="center">Center</option>
+                                        <option value="outside">Outside</option>
+                                    </select>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )}
+              </div>
+          </Section>
 
           {/* PHOTO PLACEHOLDER */}
           {element.type !== "text" && (
-            <Section title="Photo Placeholder">
-              <label className="flex items-center gap-2 cursor-pointer mb-3">
+            <Section title="Interaction">
+              <label className="flex items-center gap-3 p-3 rounded-lg border border-slate-200 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900/20 cursor-pointer hover:border-primary/50 transition-colors">
                 <input
                   type="checkbox"
+                  className="w-4 h-4 rounded border-slate-300 text-primary focus:ring-primary"
                   checked={element.isPlaceholder}
                   onChange={(e) => onUpdate({ isPlaceholder: e.target.checked })}
                 />
-                <ImageIcon size={14} className="text-primary" />
-                <span className="text-sm">Enable Placeholder</span>
+                <div className="flex-1">
+                    <span className="text-sm font-medium flex items-center gap-2">
+                        <ImageIcon size={14} className="text-primary" />
+                        User Upload Area
+                    </span>
+                    <p className="text-xs text-slate-500 mt-0.5">Allow users to insert their photo here</p>
+                </div>
               </label>
               
               {element.isPlaceholder && (
-                <div className="space-y-3">
+                <div className="mt-4 space-y-4">
+                  <div className="p-3 bg-blue-50 dark:bg-blue-900/10 rounded-lg border border-blue-100 dark:border-blue-900/20">
+                    <p className="text-xs text-blue-600 dark:text-blue-400">
+                        <strong>Preview Image:</strong> Upload a temporary image to test how it looks. This won't be saved in the final template.
+                    </p>
+                  </div>
                   {element.placeholderImage ? (
-                    <div className="relative">
+                    <div className="relative group">
                       <img 
                         src={element.placeholderImage} 
                         alt="Placeholder" 
-                        className="w-full h-32 object-cover rounded-lg border border-border"
+                        className="w-full h-40 object-cover rounded-lg border border-slate-200 dark:border-slate-700 bg-slate-100"
                       />
                       <button
                         onClick={() => onUpdate({ placeholderImage: undefined, imageOffsetX: 0, imageOffsetY: 0, imageScale: 1 })}
-                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full hover:bg-red-600 transition-colors"
+                        className="absolute top-2 right-2 p-1.5 bg-red-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-sm"
                         title="Remove image"
                       >
                         <X size={12} />
                       </button>
                     </div>
                   ) : (
-                    <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary transition-colors">
-                      <ImageIcon size={24} className="text-muted-foreground mb-2" />
-                      <span className="text-xs text-muted-foreground">Click to upload image</span>
+                    <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-slate-300 dark:border-slate-700 rounded-lg cursor-pointer hover:border-primary hover:bg-slate-50 dark:hover:bg-slate-900 transition-all">
+                      <ImageIcon size={24} className="text-slate-400 mb-2" />
+                      <span className="text-xs text-slate-500">Click to upload preview</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -323,22 +405,6 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
                         }}
                       />
                     </label>
-                  )}
-                  
-                  {element.placeholderImage && (
-                    <div className="space-y-2">
-                      <Slider
-                        label="Image Zoom"
-                        min={0.5}
-                        max={3}
-                        step={0.1}
-                        value={element.imageScale || 1}
-                        onChange={(imageScale) => onUpdate({ imageScale })}
-                      />
-                      <div className="text-xs text-muted-foreground">
-                        Tip: Drag the image inside the shape to reposition it
-                      </div>
-                    </div>
                   )}
                 </div>
               )}

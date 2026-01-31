@@ -1,4 +1,3 @@
-// CanvasStage.tsx
 import React, { useRef, useEffect, useCallback } from 'react';
 import { Stage, Layer, Rect, Transformer, Image as KonvaImage } from 'react-konva';
 import Konva from 'konva';
@@ -36,16 +35,15 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
   const [scale, setScale] = React.useState(1);
   const [lockAspectRatio, setLockAspectRatio] = React.useState(false);
 
-  // Load background image (use-image returns [HTMLImageElement | undefined, status])
+  // Load background image
   const [bgImage] = useImage(backgroundImage || '', 'anonymous');
 
-  // calculate a conservative scale to fit canvas inside its container (avoid NaN)
+  // Calculate scale to fit canvas inside container
   useEffect(() => {
     const updateScale = () => {
       if (!containerRef.current) return;
       const cw = containerRef.current.clientWidth;
       const ch = containerRef.current.clientHeight;
-      // leave a small padding so controls don't touch edges
       const containerWidth = Math.max(1, cw - 80);
       const containerHeight = Math.max(1, ch - 80);
       const scaleX = containerWidth / Math.max(1, canvasSize.width);
@@ -59,24 +57,26 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     return () => window.removeEventListener('resize', updateScale);
   }, [canvasSize]);
 
-  // Keep transformer attached to the selected node
+  // Keep transformer attached to selected node
   useEffect(() => {
     if (transformerRef.current && stageRef.current) {
       const stage = stageRef.current;
       const selectedNode = stage.findOne(`#${selectedId}`);
+
       if (selectedNode && !isGeneratorMode) {
-        // For Groups, try to find the transformer-target Rect child
         let targetNode = selectedNode;
+
+        // FIX 1: Cast selectedNode to Konva.Group to access .find()
         if (selectedNode.getType() === 'Group') {
-          const rectChild = selectedNode.find((node: Konva.Node) => node.name() === 'transformer-target');
+          const groupNode = selectedNode as Konva.Group;
+          const rectChild = groupNode.find((node: Konva.Node) => node.name() === 'transformer-target');
           if (rectChild && rectChild.length > 0) {
-            targetNode = rectChild[0] as Konva.Node;
+            targetNode = rectChild[0];
           }
         }
         
         transformerRef.current.nodes([targetNode]);
         
-        // Set aspect ratio lock based on element type
         const element = elements.find(el => el.id === selectedId);
         if (element) {
           const shouldLock = element.type === 'circle' || element.type === 'polygon';
@@ -94,7 +94,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
-      // click on empty space -> deselect
       if (e.target === e.target.getStage() || e.target.name() === 'background') {
         onSelect(null);
       }
@@ -102,12 +101,10 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     [onSelect]
   );
 
-  // When a Konva node finishes transform, push updates upstream
   const handleTransformEnd = useCallback(
     (e: Konva.KonvaEventObject<Event>) => {
       const node = e.target as any;
       
-      // If this is a transformer-target Rect, find its parent Group
       let groupNode = node;
       let elementId = node.id();
       
@@ -121,11 +118,9 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
       const element = elements.find((el) => el.id === elementId);
       if (!element) return;
 
-      // Get the actual scale values from the transformed node
       const scaleX = node.scaleX();
       const scaleY = node.scaleY();
       
-      // Get position from the Group (parent)
       const groupX = groupNode.x();
       const groupY = groupNode.y();
       const groupRotation = groupNode.rotation();
@@ -136,20 +131,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         rotation: Math.round(groupRotation),
       };
 
-      // For shapes & images: update width/height based on node size * scale
       if (element.type === 'rect' || element.type === 'image') {
-        // Get the original width/height from the element
         const originalWidth = (element as any).width || 100;
         const originalHeight = (element as any).height || 100;
         
-        // Calculate new dimensions based on scale
         const newW = Math.max(20, Math.round(originalWidth * scaleX));
         const newH = Math.max(20, Math.round(originalHeight * scaleY));
         
         updates.width = newW;
         updates.height = newH;
       } else if (element.type === 'circle' || element.type === 'polygon') {
-        // For circles and polygons, use average scale to maintain shape
         const scaleAvg = (scaleX + scaleY) / 2;
         const originalRadius = (element as any).radius || 50;
         updates.radius = Math.max(10, Math.round(originalRadius * scaleAvg));
@@ -158,12 +149,11 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
         updates.width = Math.max(50, Math.round(originalWidth * scaleX));
       }
 
-      // Reset scale so future transforms are based on the new width/height
       node.scaleX(1);
       node.scaleY(1);
       
-      // Update the Rect's dimensions to match new shape size
-      if (element.type === 'Rect' || element.type === 'image') {
+      // FIX 2: Changed 'Rect' to 'rect' (lowercase)
+      if (element.type === 'rect' || element.type === 'image') {
         const newW = updates.width as number;
         const newH = updates.height as number;
         node.width(newW);
@@ -183,10 +173,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     [elements, onUpdate]
   );
 
-  /**
-   * Compute a draw rectangle for background image that keeps the aspect ratio
-   * and fits the image inside the canvas (letterbox if needed). Returns null if no bgImage loaded.
-   */
   const computeBgDrawRect = useCallback(() => {
     if (!bgImage) return null;
 
@@ -203,20 +189,16 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
     let drawW = canvasW;
     let drawH = canvasH;
 
-    // Fit image inside canvas while preserving aspect ratio
     if (imgRatio > canvasRatio) {
-      // image is relatively wider -> fit by width
       const scale = Math.min(1, canvasW / imgW);
       drawW = Math.round(imgW * scale);
       drawH = Math.round(imgH * scale);
     } else {
-      // image is relatively taller -> fit by height
       const scale = Math.min(1, canvasH / imgH);
       drawW = Math.round(imgW * scale);
       drawH = Math.round(imgH * scale);
     }
 
-    // Center the image inside the canvas
     const offsetX = Math.round((canvasW - drawW) / 2);
     const offsetY = Math.round((canvasH - drawH) / 2);
 
@@ -227,7 +209,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
 
   return (
     <div ref={containerRef} className="canvas-container flex-1 relative">
-      {/* Canvas size indicator */}
       <div className="absolute top-4 left-4 text-xs text-muted-foreground font-mono z-40">
         {canvasSize.width} × {canvasSize.height}
       </div>
@@ -247,7 +228,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
           onTap={handleStageClick}
         >
           <Layer>
-            {/* Background color */}
             <Rect
               name="background"
               x={0}
@@ -257,7 +237,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               fill={backgroundColor || '#ffffff'}
             />
 
-            {/* Background image (fit & center) */}
             {bgImage && bgRect && (
               <KonvaImage
                 name="background-image"
@@ -271,7 +250,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               />
             )}
 
-            {/* Render elements via ShapeRenderer */}
             {elements.map((element) => (
               <ShapeRenderer
                 key={element.id}
@@ -284,7 +262,6 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
               />
             ))}
 
-            {/* Transformer used for selected node */}
             {!isGeneratorMode && (
               <Transformer
                 ref={transformerRef}
@@ -301,16 +278,13 @@ export const CanvasStage: React.FC<CanvasStageProps> = ({
                 enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'top-center', 'bottom-center', 'middle-left', 'middle-right']}
                 keepRatio={lockAspectRatio}
                 boundBoxFunc={(oldBox, newBox) => {
-                  // prevent too-small transforms
                   if (newBox.width < 20 || newBox.height < 20) return oldBox;
                   
-                  // Maintain aspect ratio if locked
                   if (lockAspectRatio) {
                     const aspectRatio = oldBox.width / oldBox.height;
                     const newAspectRatio = newBox.width / newBox.height;
                     
                     if (Math.abs(newAspectRatio - aspectRatio) > 0.01) {
-                      // Adjust to maintain aspect ratio
                       const widthChange = Math.abs(newBox.width - oldBox.width);
                       const heightChange = Math.abs(newBox.height - oldBox.height);
                       

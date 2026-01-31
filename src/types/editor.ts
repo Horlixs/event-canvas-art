@@ -1,3 +1,5 @@
+// src/types/editor.ts
+
 export type ShapeType = 'rect' | 'circle' | 'polygon' | 'text' | 'image';
 export type StrokePosition = 'inside' | 'center' | 'outside';
 
@@ -13,13 +15,15 @@ export interface BaseElement {
   x: number;
   y: number;
   rotation: number;
+  opacity?: number;
   isPlaceholder: boolean;
-  strokes?: StrokeLayer[]; // works for all shapes
+  strokes?: StrokeLayer[];
+  
   // Image placeholder data
-  placeholderImage?: string; // Base64 or URL of uploaded image
-  imageOffsetX?: number; // Image position within shape
+  placeholderImage?: string; 
+  imageOffsetX?: number; 
   imageOffsetY?: number;
-  imageScale?: number; // Image zoom within shape (default: 1)
+  imageScale?: number; 
 }
 
 export interface ImageElement extends BaseElement {
@@ -56,14 +60,29 @@ export interface TextElement extends BaseElement {
   fontSize: number;
   fontFamily: string;
   fontStyle: 'normal' | 'italic';
-  fontWeight: number;
+  fontWeight: string | number; // e.g., '400', '700', 'bold'
+  textAlign: 'left' | 'center' | 'right'; // Add this
   fill: string;
   width: number;
 }
 
-export type CanvasElement =
-  | RectElement
-  | CircleElement
-  | PolygonElement
-  | TextElement
-  | ImageElement; // ← FIXED
+// 1. MUST DEFINE THIS UNION TYPE
+export type CanvasElement = 
+  | RectElement 
+  | CircleElement 
+  | PolygonElement 
+  | TextElement 
+  | ImageElement;
+
+export interface TemplateData {
+  id: string;
+  slug: string;
+  name: string;
+  width: number;
+  height: number;
+  backgroundColor: string;
+  backgroundImage?: string;
+  // 2. USE THE UNION TYPE HERE (Not HTMLCanvasElement)
+  elements: CanvasElement[]; 
+  thumbnail?: string;
+}

@@ -1,9 +1,16 @@
-import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
+import React, { useRef, useCallback, useState, useEffect, useMemo, useLayoutEffect } from 'react';
 import { AnimatePresence } from 'framer-motion';
-import { Stage, Layer, Rect, Circle, Line, Text, Image as KonvaImage } from 'react-konva';
-import { Download, X, Image as ImageIcon, Loader2, AlertCircle, ChevronLeft, Upload, Type } from 'lucide-react';
+import { Stage, Layer, Rect, Circle, Line, Text, Image as KonvaImage, Group } from 'react-konva';
+import { 
+  Download, 
+  Image as ImageIcon, 
+  Loader2, 
+  AlertCircle, 
+  ChevronLeft, 
+  Type
+} from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
-import { CanvasElement, TemplateData } from '@/types/editor';
+import { CanvasElement, TemplateData, TextElement } from '@/types/editor';
 import { toast } from 'sonner';
 import { getTemplateBySlug } from '@/lib/templates';
 import useImage from 'use-image';
@@ -11,115 +18,190 @@ import { ImageCropper } from './ImageCropper';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 
-// --- HELPERS ---
+// --- HELPER: Background Image ---
 const BackgroundImage: React.FC<{ src: string; width: number; height: number }> = ({ src, width, height }) => {
   const [image] = useImage(src);
+  
   if (!image) return null;
   
-  // Calculate fit dimensions to maintain aspect ratio
   const imgElement = image as HTMLImageElement;
-  const imgNaturalWidth = imgElement.naturalWidth || imgElement.width || 1;
-  const imgNaturalHeight = imgElement.naturalHeight || imgElement.height || 1;
-  
-  const imgRatio = imgNaturalWidth / imgNaturalHeight;
-  const canvasRatio = width / height;
-  
-  let drawWidth = width;
-  let drawHeight = height;
-  let offsetX = 0;
-  let offsetY = 0;
-  
-  // Fit image inside canvas while preserving aspect ratio
-  if (imgRatio > canvasRatio) {
-    // Image is wider - fit by width
-    drawWidth = width;
-    drawHeight = width / imgRatio;
-    offsetY = (height - drawHeight) / 2;
-  } else {
-    // Image is taller - fit by height
-    drawHeight = height;
-    drawWidth = height * imgRatio;
-    offsetX = (width - drawWidth) / 2;
-  }
+  const imgWidth = imgElement.naturalWidth || 1;
+  const imgHeight = imgElement.naturalHeight || 1;
+  const ratio = Math.max(width / imgWidth, height / imgHeight);
   
   return (
     <KonvaImage 
       image={image} 
-      x={offsetX} 
-      y={offsetY} 
-      width={drawWidth} 
-      height={drawHeight} 
+      width={imgWidth * ratio}
+      height={imgHeight * ratio}
+      x={(width - imgWidth * ratio) / 2}
+      y={(height - imgHeight * ratio) / 2}
     />
   );
 };
 
-// Render shapes with strokes support
-const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({ element, userImage }) => {
-  switch (element.type) {
-    case 'rect':
-      return (
-        <>
-          {element.strokes?.map((s, i) => (
-            <Rect
-              key={i}
-              x={element.x - element.width / 2 - s.width / 2}
-              y={element.y - element.height / 2 - s.width / 2}
-              width={element.width + s.width}
-              height={element.height + s.width}
-              fill={s.color}
-            />
-          ))}
-          <Rect
-            x={element.x - element.width / 2}
-            y={element.y - element.height / 2}
-            width={element.width}
-            height={element.height}
-            fill={userImage ? undefined : element.fill}
-            fillPatternImage={userImage ? new window.Image() : undefined}
-          />
-        </>
-      );
-    case 'circle':
-      return (
-        <>
-          {element.strokes?.map((s, i) => (
-            <Circle
-              key={i}
-              x={element.x}
-              y={element.y}
-              radius={element.radius + s.width / 2}
-              fill={s.color}
-            />
-          ))}
-          <Circle
-            x={element.x}
-            y={element.y}
-            radius={element.radius}
-            fill={element.fill}
-          />
-        </>
-      );
-    case 'polygon':
-      const points = Array.from({ length: element.sides }, (_, i) => {
-        const angle = (Math.PI * 2 * i) / element.sides - Math.PI / 2;
-        return [
-          element.x + element.radius * Math.cos(angle),
-          element.y + element.radius * Math.sin(angle),
-        ];
-      }).flat();
-      return (
-        <>
-          {element.strokes?.map((s, i) => (
-            <Line key={i} points={points} closed fill={s.color} />
-          ))}
-          <Line points={points} closed fill={element.fill} />
-        </>
-      );
-    case 'text':
-      return <Text x={element.x - element.width / 2} y={element.y - element.fontSize / 2} text={element.text} fontSize={element.fontSize} fontFamily={element.fontFamily} fontStyle={element.fontStyle} fontWeight={element.fontWeight} fill={element.fill} width={element.width} />;
-    default:
-      return null;
+// --- HELPER: Shape with User Image Support ---
+const URLImageShape: React.FC<{ 
+  element: CanvasElement; 
+  src?: string; 
+  children?: React.ReactNode 
+}> = ({ element, src, children }) => {
+  const [image] = useImage(src || '', 'anonymous');
+
+  const fillProps = useMemo(() => {
+    // 1. Safely get fallback fill
+    const fallbackFill = 'fill' in element ? element.fill : undefined;
+
+    if (!image || !src) return { fill: fallbackFill };
+
+    // 2. Safely calculate dimensions based on shape type
+    let shapeWidth = 0;
+    let shapeHeight = 0;
+
+    if (element.type === 'circle' || element.type === 'polygon') {
+        shapeWidth = element.radius * 2;
+        shapeHeight = element.radius * 2;
+    } else if (element.type === 'rect' || element.type === 'image') {
+        shapeWidth = element.width;
+        shapeHeight = element.height;
+    }
+
+    const imgWidth = image.width;
+    const imgHeight = image.height;
+
+    // Calculate scale to cover the shape area (Object-fit: cover)
+    const scale = Math.max(shapeWidth / imgWidth, shapeHeight / imgHeight);
+
+    // Center the pattern
+    const offsetX = (imgWidth * scale - shapeWidth) / 2;
+    const offsetY = (imgHeight * scale - shapeHeight) / 2;
+
+    return {
+      fillPatternImage: image,
+      fillPatternScaleX: scale,
+      fillPatternScaleY: scale,
+      fillPatternOffsetX: offsetX / scale,
+      fillPatternOffsetY: offsetY / scale,
+    };
+  }, [image, src, element]);
+
+  // Extract props common to all shapes
+  const { id, x, y, rotation, opacity, isPlaceholder } = element;
+  
+  const commonProps = {
+    id, x, y, rotation, opacity,
+    listening: isPlaceholder,
+    ...fillProps
+  };
+
+  if (element.type === 'rect') {
+    return (
+      <Group>
+        {children}
+        <Rect
+          {...commonProps}
+          width={element.width}
+          height={element.height}
+          cornerRadius={element.cornerRadius}
+          x={element.x - element.width / 2}
+          y={element.y - element.height / 2}
+        />
+      </Group>
+    );
   }
+
+  if (element.type === 'circle') {
+    return (
+      <Group>
+        {children}
+        <Circle {...commonProps} radius={element.radius} />
+      </Group>
+    );
+  }
+
+  if (element.type === 'polygon') {
+    const points = Array.from({ length: element.sides || 3 }, (_, i) => {
+      const angle = (Math.PI * 2 * i) / (element.sides || 3) - Math.PI / 2;
+      return [
+        element.x + element.radius * Math.cos(angle),
+        element.y + element.radius * Math.sin(angle),
+      ];
+    }).flat();
+
+    return (
+      <Group>
+        {children}
+        <Line 
+          points={points} 
+          closed 
+          {...commonProps}
+          fill={src ? undefined : element.fill} 
+        />
+      </Group>
+    );
+  }
+
+  if (element.type === 'image') {
+      return (
+        <Group>
+             <Rect 
+                {...commonProps}
+                width={element.width}
+                height={element.height}
+                x={element.x - element.width / 2}
+                y={element.y - element.height / 2}
+             />
+        </Group>
+      )
+  }
+
+  return null;
+};
+
+// --- HELPER: Main Shape Renderer ---
+const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({ element, userImage }) => {
+  if (element.type === 'text') {
+    // TEXT RENDERING:
+    // We strictly follow the styles set by the creator (align, weight, font).
+    // The user can only change the content (element.text).
+    return (
+      <Text
+        x={element.x}
+        y={element.y}
+        offsetX={element.width / 2}
+        offsetY={element.fontSize / 2}
+        
+        text={element.text}
+        width={element.width}
+        fontSize={element.fontSize}
+        fontFamily={element.fontFamily}
+        fontStyle={element.fontStyle}
+        fontWeight={element.fontWeight} // Respects creator's choice
+        fill={element.fill}
+        
+        align={element.textAlign || 'center'} // Respects creator's choice
+        verticalAlign="middle"
+      />
+    );
+  }
+
+  // Render non-text shapes strokes
+  const strokes = (
+    <>
+      {element.strokes?.map((s, i) => {
+        const commonProps = { key: i, fill: s.color, listening: false };
+        if(element.type === 'rect') {
+            return <Rect {...commonProps} x={element.x - element.width/2 - s.width/2} y={element.y - element.height/2 - s.width/2} width={element.width + s.width} height={element.height + s.width} />
+        }
+        if(element.type === 'circle') {
+            return <Circle {...commonProps} x={element.x} y={element.y} radius={element.radius + s.width/2} />
+        }
+        return null;
+      })}
+    </>
+  );
+
+  return <URLImageShape element={element} src={userImage} children={strokes} />;
 };
 
 export const Generator: React.FC = () => {
@@ -136,15 +218,20 @@ export const Generator: React.FC = () => {
   const [scale, setScale] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [fontsLoaded, setFontsLoaded] = useState(false);
 
-  // Load template
+  // 1. Load Template
   useEffect(() => {
     const loadTemplate = async () => {
       if (!slug) return setError('No template specified'), setIsLoading(false);
       try {
         const data = await getTemplateBySlug(slug);
-        if (data) setTemplate(data), setElements(data.elements);
-        else setError('Template not found');
+        if (data) {
+            setTemplate(data);
+            setElements(data.elements);
+        } else {
+            setError('Template not found');
+        }
       } catch (err) {
         console.error(err);
         setError('Failed to load template');
@@ -155,58 +242,84 @@ export const Generator: React.FC = () => {
     loadTemplate();
   }, [slug]);
 
-  // Scaling - ensure canvas fits within viewport
+  // 2. Dynamic Google Font Loader
   useEffect(() => {
+    if (!elements.length) return;
+
+    const fontFamilies = new Set<string>();
+    elements.forEach(el => {
+      if (el.type === 'text' && el.fontFamily) {
+        fontFamilies.add(el.fontFamily);
+      }
+    });
+
+    if (fontFamilies.size === 0) {
+      setFontsLoaded(true);
+      return;
+    }
+
+    // Load fonts (Regular 400 and Bold 700)
+    const familiesQuery = Array.from(fontFamilies)
+      .map(font => `family=${font.replace(/\s+/g, '+')}:wght@400;700`)
+      .join('&');
+    
+    const link = document.createElement('link');
+    link.href = `https://fonts.googleapis.com/css2?${familiesQuery}&display=swap`;
+    link.rel = 'stylesheet';
+    
+    link.onload = () => {
+       document.fonts.ready.then(() => {
+         setFontsLoaded(true); 
+         if(stageRef.current) stageRef.current.batchDraw(); 
+       });
+    };
+    
+    document.head.appendChild(link);
+    return () => { document.head.removeChild(link); };
+  }, [elements]);
+
+  // 3. Robust Scaling
+  useLayoutEffect(() => {
     if (!template || !containerRef.current) return;
     const updateScale = () => {
-      const container = containerRef.current;
-      if (!container) return;
-      
-      // Get actual container dimensions
-      const containerRect = container.getBoundingClientRect();
-      const availableWidth = containerRect.width;
-      const availableHeight = containerRect.height;
-      
-      // Account for padding (p-4 md:p-8 = 16px mobile, 32px desktop)
-      const padding = window.innerWidth >= 768 ? 64 : 32;
-      const maxWidth = Math.max(1, availableWidth - padding);
-      const maxHeight = Math.max(1, availableHeight - padding);
-      
-      // Calculate scale to fit both dimensions
-      const scaleX = maxWidth / template.width;
-      const scaleY = maxHeight / template.height;
-      
-      // Use the smaller scale to ensure it fits, but cap at 1 (don't scale up)
-      const newScale = Math.min(scaleX, scaleY, 1);
-      setScale(Math.max(0.1, newScale)); // Ensure minimum scale
+        if (!containerRef.current) return;
+        const { width, height } = containerRef.current.getBoundingClientRect();
+        const padding = 32; 
+        const scaleX = (width - padding) / template.width;
+        const scaleY = (height - padding) / template.height;
+        setScale(Math.max(0.1, Math.min(scaleX, scaleY, 1)));
     };
     
     updateScale();
-    const timeout = setTimeout(updateScale, 100);
-    window.addEventListener('resize', updateScale);
-    return () => {
-      clearTimeout(timeout);
-      window.removeEventListener('resize', updateScale);
-    };
+    const observer = new ResizeObserver(updateScale);
+    observer.observe(containerRef.current);
+    return () => observer.disconnect();
   }, [template]);
 
   const placeholderElements = useMemo(() => elements.filter((el) => el.isPlaceholder), [elements]);
-  const textElements = useMemo(() => elements.filter((el) => el.type === 'text'), [elements]);
+  const textElements = useMemo(() => elements.filter((el) => el.type === 'text') as TextElement[], [elements]);
 
   const getPlaceholderAspectRatio = useCallback((id: string) => {
     const el = elements.find((e) => e.id === id);
     if (!el) return 1;
+    if (el.type === 'circle') return 1;
     if ('width' in el && 'height' in el) return el.width / el.height;
     return 1;
   }, [elements]);
 
-  const updateTextElement = useCallback((id: string, text: string) => {
-    setElements((prev) => prev.map((el) => el.id === id ? { ...el, text } : el));
+  // Update text content only
+  const handleTextChange = useCallback((id: string, newText: string) => {
+    setElements((prev) => prev.map((el) => 
+        (el.id === id && el.type === 'text') ? { ...el, text: newText } : el
+    ));
   }, []);
 
   const handleUploadClick = useCallback((id: string) => {
     setCurrentCroppingId(id);
-    fileInputRef.current?.click();
+    if (fileInputRef.current) {
+        fileInputRef.current.value = ''; 
+        fileInputRef.current.click();
+    }
   }, []);
 
   const handleImageUpload = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
@@ -215,7 +328,6 @@ export const Generator: React.FC = () => {
     const reader = new FileReader();
     reader.onload = (event) => setImageToCrop(event.target?.result as string);
     reader.readAsDataURL(file);
-    e.target.value = '';
   }, [currentCroppingId]);
 
   const handleCropComplete = useCallback((croppedImageUrl: string) => {
@@ -229,229 +341,153 @@ export const Generator: React.FC = () => {
   const handleDownload = useCallback(() => {
     if (!stageRef.current) return;
     try {
-      const uri = stageRef.current.toDataURL({ pixelRatio: 3 });
+      const uri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
       const link = document.createElement('a');
-      link.download = `design-${slug}.png`;
+      link.download = `design-${slug || 'dp'}.png`;
       link.href = uri;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
       toast.success('Image downloaded!');
-    } catch {
+    } catch (e) {
+      console.error(e);
       toast.error('Could not generate image.');
     }
   }, [slug]);
 
-  if (isLoading) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
-        <Loader2 className="animate-spin w-8 h-8 text-primary mb-3" />
-        <p className="text-sm text-slate-500 dark:text-slate-400">Loading campaign…</p>
-      </div>
-    );
-  }
-
-  if (error || !template) {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 px-4">
-        <div className="flex flex-col items-center gap-3 bg-slate-50 dark:bg-slate-900/60 border border-slate-200 dark:border-slate-800 rounded-2xl px-6 py-8 max-w-sm text-center">
-          <AlertCircle className="w-8 h-8 text-red-500" />
-          <h1 className="text-lg font-semibold">We couldn&apos;t load this DP</h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">{error || 'Something went wrong.'}</p>
-          <Button asChild className="mt-2 rounded-full px-6">
-            <Link to="/">
-              <ChevronLeft className="w-4 h-4 mr-2" />
-              Go back home
-            </Link>
-          </Button>
-        </div>
-      </div>
-    );
-  }
+  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin w-8 h-8" /></div>;
+  if (error || !template) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
 
   const isDownloadDisabled = placeholderElements.length > 0 && placeholderElements.some((el) => !userImages[el.id]);
 
   return (
-    <div className="flex flex-col min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      
       {/* Header */}
-      <header className="h-14 px-4 md:px-8 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white/70 dark:bg-slate-950/70 backdrop-blur-xl">
+      <header className="h-14 shrink-0 px-4 md:px-8 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white dark:bg-slate-950 z-20">
         <div className="flex items-center gap-3">
           <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-            <Link to="/">
-              <ChevronLeft className="w-4 h-4" />
-            </Link>
+            <Link to="/"><ChevronLeft className="w-4 h-4" /></Link>
           </Button>
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">
-              DP generator
-            </p>
-            <h1 className="text-sm font-semibold leading-tight">
-              Personalize &amp; download
-            </h1>
-          </div>
-        </div>
-        <div className="hidden md:flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-          Live preview
+          <h1 className="text-sm font-semibold">DP Generator</h1>
         </div>
       </header>
 
-      {/* Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row overflow-hidden">
-        {/* Sidebar */}
-        <aside className="w-full lg:w-[360px] border-b lg:border-b-0 lg:border-r border-slate-200 dark:border-slate-800 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl px-4 md:px-6 py-4 flex flex-col gap-6 overflow-y-auto">
-          {/* Upload photos */}
-          {placeholderElements.length > 0 && (
-            <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400">
-                Photos
-              </h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Upload your photo into each frame below. You&apos;ll see changes on the right instantly.
-              </p>
-              <div className="space-y-3">
-                {placeholderElements.map((el) => {
-                  const filled = !!userImages[el.id];
-                  return (
-                    <button
-                      key={el.id}
-                      type="button"
-                      onClick={() => handleUploadClick(el.id)}
-                      className={cn(
-                        "w-full rounded-xl border-2 border-dashed flex items-center gap-3 px-3 py-2.5 text-left transition-colors",
-                        filled
-                          ? "border-slate-200 dark:border-slate-700 bg-slate-50/70 dark:bg-slate-900/70"
-                          : "border-slate-300 dark:border-slate-700 hover:border-primary/70 hover:bg-slate-50/80 dark:hover:bg-slate-900/70"
-                      )}
-                    >
-                      <div className="w-12 h-12 rounded-lg overflow-hidden bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-                        {filled ? (
-                          <img
-                            src={userImages[el.id]}
-                            alt=""
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <ImageIcon className="w-5 h-5 text-slate-400" />
-                        )}
-                      </div>
-                      <div className="flex-1">
-                        <p className="text-xs font-medium text-slate-900 dark:text-slate-100">
-                          {filled ? "Change photo" : "Upload photo"}
-                        </p>
-                        <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                          PNG or JPG • Fits this frame
-                        </p>
-                      </div>
-                    </button>
-                  );
-                })}
-              </div>
-            </section>
-          )}
+      {/* Main Layout */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+        
+        {/* Canvas Area */}
+        <main className="flex-1 relative bg-slate-100 dark:bg-black/40 overflow-hidden order-1 lg:order-2 h-[50vh] lg:h-auto border-b lg:border-b-0 lg:border-l border-slate-200 dark:border-slate-800">
+          <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_1px_1px,#888_1px,transparent_0)] [background-size:20px_20px]" />
 
-          {/* Text controls */}
-          {textElements.length > 0 && (
-            <section className="space-y-3">
-              <h3 className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-500 dark:text-slate-400 flex items-center gap-1.5">
-                <Type className="w-3 h-3" />
-                Text
-              </h3>
-              <div className="space-y-2">
-                {textElements.map((el, index) => (
-                  <div key={el.id} className="space-y-1.5">
-                    <label className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
-                      Line {index + 1}
-                    </label>
-                    <input
-                      type="text"
-                      value={el.text}
-                      onChange={(e) => updateTextElement(el.id, e.target.value)}
-                      className="w-full rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-3 py-2 text-xs text-slate-900 dark:text-slate-100 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary/60"
-                      placeholder="Type here…"
-                    />
-                  </div>
-                ))}
-              </div>
-            </section>
-          )}
-
-          {/* Download */}
-          <section className="mt-auto pt-2 border-t border-slate-200 dark:border-slate-800">
-            <Button
-              onClick={handleDownload}
-              disabled={isDownloadDisabled}
-              className="w-full rounded-full h-10 text-sm font-semibold shadow-md shadow-primary/20"
+          <div ref={containerRef} className="absolute inset-0 flex items-center justify-center p-4">
+            <div 
+              className="relative shadow-xl ring-1 ring-black/10 bg-white"
+              style={{
+                width: template.width,
+                height: template.height,
+                transform: `scale(${scale})`,
+                transformOrigin: 'center center',
+              }}
             >
-              <Download className="w-4 h-4 mr-2" />
-              {isDownloadDisabled ? "Complete steps first" : "Download DP"}
-            </Button>
-            {isDownloadDisabled && (
-              <p className="mt-2 text-[11px] text-slate-500 dark:text-slate-400">
-                Upload a photo for every frame before downloading.
-              </p>
-            )}
-          </section>
-        </aside>
-
-        {/* Canvas Preview */}
-        <main className="flex-1 relative bg-slate-100 dark:bg-black/70 overflow-hidden min-h-0">
-          {/* subtle grid background */}
-          <div className="absolute inset-0 opacity-40 dark:opacity-30 pointer-events-none bg-[radial-gradient(circle_at_1px_1px,#cbd5f5_1px,transparent_0)] [background-size:22px_22px]" />
-
-          <div
-            ref={containerRef}
-            className="absolute inset-0 flex items-center justify-center p-4 md:p-8"
-          >
-            {template && (
-              <div 
-                className="relative shadow-2xl ring-1 ring-black/5 rounded-2xl overflow-hidden bg-white"
-                style={{
-                  width: template.width,
-                  height: template.height,
-                  transform: `scale(${scale})`,
-                  transformOrigin: 'center center',
-                }}
-              >
-                <Stage 
-                  ref={stageRef} 
-                  width={template.width} 
-                  height={template.height}
-                >
-                  <Layer>
-                    <Rect
-                      x={0}
-                      y={0}
-                      width={template.width}
-                      height={template.height}
-                      fill={template.backgroundColor}
+              <Stage ref={stageRef} width={template.width} height={template.height}>
+                <Layer>
+                  <Rect width={template.width} height={template.height} fill={template.backgroundColor} />
+                  {template.backgroundImage && (
+                    <BackgroundImage src={template.backgroundImage} width={template.width} height={template.height} />
+                  )}
+                  {fontsLoaded && elements.map((el) => (
+                    <RenderShape
+                      key={el.id}
+                      element={el}
+                      userImage={el.isPlaceholder ? userImages[el.id] : undefined}
                     />
-                    {template.backgroundImage && (
-                      <BackgroundImage
-                        src={template.backgroundImage}
-                        width={template.width}
-                        height={template.height}
-                      />
-                    )}
-                    {elements.map((el) => (
-                      <RenderShape
-                        key={el.id}
-                        element={el}
-                        userImage={el.isPlaceholder ? userImages[el.id] : undefined}
-                      />
-                    ))}
-                  </Layer>
-                </Stage>
-              </div>
-            )}
+                  ))}
+                </Layer>
+              </Stage>
+            </div>
           </div>
         </main>
+
+        {/* Sidebar Controls */}
+        <aside className="w-full lg:w-[360px] bg-white dark:bg-slate-950 flex flex-col order-2 lg:order-1 h-[50vh] lg:h-auto z-10 shadow-xl lg:shadow-none">
+          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
+            
+            {/* Photos Section */}
+            {placeholderElements.length > 0 && (
+              <section className="space-y-3">
+                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Photos</h3>
+                <div className="space-y-3">
+                  {placeholderElements.map((el) => {
+                    const filled = !!userImages[el.id];
+                    return (
+                      <button
+                        key={el.id}
+                        onClick={() => handleUploadClick(el.id)}
+                        className={cn(
+                          "w-full flex items-center gap-3 p-2 rounded-xl border-2 border-dashed transition-all",
+                          filled 
+                            ? "border-green-500/20 bg-green-50/50 dark:bg-green-900/10" 
+                            : "border-slate-200 dark:border-slate-700 hover:border-blue-500/50 hover:bg-slate-50 dark:hover:bg-slate-900"
+                        )}
+                      >
+                        <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center shrink-0">
+                          {filled ? (
+                            <img src={userImages[el.id]} alt="Preview" className="w-full h-full object-cover" />
+                          ) : (
+                            <ImageIcon className="w-5 h-5 text-slate-400" />
+                          )}
+                        </div>
+                        <div className="text-left">
+                          <p className="text-sm font-medium">{filled ? "Change Photo" : "Upload Photo"}</p>
+                          <p className="text-xs text-slate-500">Tap to select</p>
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
+
+            {/* Text Section (Input only, no style controls) */}
+            {textElements.length > 0 && (
+              <section className="space-y-4">
+                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                    <Type className="w-3 h-3" /> Text
+                 </h3>
+                 <div className="space-y-4">
+                    {textElements.map((el, i) => (
+                        <div key={el.id}>
+                            <label className="text-xs font-medium block mb-1.5 text-slate-600">Line {i + 1}</label>
+                            <input 
+                                value={el.text}
+                                onChange={(e) => handleTextChange(el.id, e.target.value)}
+                                className="w-full px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent text-sm"
+                                placeholder="Type here..."
+                            />
+                        </div>
+                    ))}
+                 </div>
+              </section>
+            )}
+          </div>
+
+          {/* Footer Actions */}
+          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950">
+            <Button 
+                onClick={handleDownload} 
+                disabled={isDownloadDisabled}
+                className="w-full rounded-full h-12 text-base font-medium shadow-lg shadow-blue-500/20"
+            >
+                <Download className="w-5 h-5 mr-2" />
+                Download Image
+            </Button>
+          </div>
+        </aside>
+
       </div>
 
-      {/* Hidden File Input */}
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
-
-      {/* Cropper */}
       <AnimatePresence>
         {imageToCrop && (
           <ImageCropper
