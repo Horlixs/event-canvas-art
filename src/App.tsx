@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Routes, Route } from "react-router-dom";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
@@ -19,7 +19,6 @@ const App = () => {
         <Toaster />
         <Sonner position="bottom-center" />
 
-        <BrowserRouter>
           <Routes>
             <Route path="/" element={<Homepage />} />
             
@@ -32,7 +31,6 @@ const App = () => {
 
             <Route path="*" element={<NotFound />} />
           </Routes>
-        </BrowserRouter>
 
       </TooltipProvider>
     </QueryClientProvider>
