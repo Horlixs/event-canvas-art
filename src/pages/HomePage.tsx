@@ -125,7 +125,7 @@ const Homepage = () => {
         <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
           <Link to="/" className="flex items-center gap-2 text-2xl font-bold tracking-tighter">
             <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-primary-foreground text-sm">DP</div>
-            <span>Generator</span>
+            <span>DPLab.com</span>
           </Link>
           
           <div className="flex items-center gap-4 md:gap-8">
@@ -298,7 +298,7 @@ const Homepage = () => {
         <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
           {[
             { icon: UploadCloud, title: "1. Upload Design", desc: "Upload your event flyer or brand frame. Our tool automatically sets up the image area for your users.", color: "text-amber-500" },
-            { icon: Share2, title: "2. Share Link", desc: "Get a unique link (e.g., dpgenerator.com/my-launch) and share it with your community across socials.", color: "text-blue-500" },
+            { icon: Share2, title: "2. Share Link", desc: "Get a unique link (e.g., dplab.com/my-eventdp) and share it with your community across socials.", color: "text-blue-500" },
             { icon: Users, title: "3. Viral Growth", desc: "Users upload their photo, personalize it, and share the result instantly. Watch the momentum build.", color: "text-emerald-500" }
           ].map((feature, i) => (
             <FadeIn key={i} delay={i * 0.1}>
@@ -374,7 +374,7 @@ const Homepage = () => {
                 Trending Campaigns
             </h2>
             <p className="text-slate-400 mb-12 max-w-2xl mx-auto">
-                See how other leaders are using DP Generator to hype their movements.
+                See how other leaders are using our DPLab to hype their movements.
             </p>
           </FadeIn>
 
@@ -462,7 +462,7 @@ const Homepage = () => {
             {[
               { name: "Sarah J.", role: "Event Host", quote: "I uploaded my design, shared the link on WhatsApp, and woke up to 200 people using my DP design. Insane reach!" },
               { name: "David K.", role: "Community Lead", quote: "The best part is I don't have to edit pictures manually for my members anymore. They do it themselves instantly." },
-              { name: "TechNexus Team", role: "Brand Launch", quote: "We used DP Generator for our new product reveal. It created a massive buzz on Twitter before the launch even started." }
+              { name: "TechNexus Team", role: "Brand Launch", quote: "We used DPLab for our new product reveal. It created a massive buzz on Twitter before the launch even started." }
             ].map((testimonial, i) => (
               <FadeIn key={i} delay={i * 0.1}>
                 <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative transition-colors duration-300 h-full">
@@ -548,7 +548,7 @@ const Homepage = () => {
       <footer className="bg-slate-950 dark:bg-black text-slate-300 py-16 transition-colors duration-300">
         <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
           <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="text-2xl font-bold text-white mb-4 block tracking-tight">DP Generator</Link>
+            <Link to="/" className="text-2xl font-bold text-white mb-4 block tracking-tight">DPLab.com</Link>
             <p className="leading-relaxed text-sm text-slate-400">
               The easiest way to create viral DP campaigns for events, communities, and brands.
             </p>
@@ -575,15 +575,15 @@ const Homepage = () => {
         </div>
 
         <div className="border-t border-white/10 mx-6 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center text-sm gap-4 text-slate-500">
-          <div>© {new Date().getFullYear()} DP Generator. All rights reserved.</div>
+          <div>© {new Date().getFullYear()} DPLab.com. All rights reserved.</div>
           <div className="flex gap-6">
              <a href="#" className="hover:text-white transition-colors">Twitter</a>
              <a href="#" className="hover:text-white transition-colors">Instagram</a>
              <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
           </div>
         </div>
-        <div className="text-white/10 bg-clip-text bg-gradient-to-r text-[28vw]" >
-            YourDP
+        <div className="text-white/10 bg-clip-text bg-gradient-to-r text-[18vw]" >
+            DPLab.com
         </div>
       </footer>
     </main>
