@@ -1,15 +1,8 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { 
-  Square, 
-  Circle, 
-  Hexagon, 
-  Type, 
-  Share2,
-  Trash2,
-  Copy,
-  ChevronUp,
-  ChevronDown,
+  Square, Circle, Hexagon, Type, 
+  Share2, Trash2, Copy, ChevronUp, ChevronDown 
 } from 'lucide-react';
 import { ShapeType } from '@/types/editor';
 import { cn } from '@/lib/utils';
@@ -25,140 +18,66 @@ interface FloatingToolbarProps {
   isPublishing?: boolean;
 }
 
-interface ToolButtonProps {
-  icon: React.ReactNode;
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  className?: string;
-}
-
-const ToolButton: React.FC<ToolButtonProps> = ({ 
-  icon, 
-  label, 
-  onClick, 
-  disabled = false,
-  className,
-}) => {
-  return (
-    <motion.button
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.9 }}
-        className={cn(
-        // Increased padding (p-3) and base size for better visibility
-        "p-3 rounded-sm text-slate-600 hover:text-slate-900 hover:bg-slate-100 dark:text-slate-400 dark:hover:text-slate-100 dark:hover:bg-slate-800 transition-colors disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-transparent",
-        className
-      )}
-      onClick={onClick}
-      disabled={disabled}
-      title={label}
-      type="button"
-    >
-      {icon}
-    </motion.button>
-  );
-};
-
-const Divider = () => (
-  <div className="w-px h-8 bg-slate-200 dark:bg-white/10 mx-1.5" />
+const ToolButton = ({ icon, label, onClick, disabled = false, className = "" }: any) => (
+  <motion.button
+    whileHover={{ scale: 1.05 }}
+    whileTap={{ scale: 0.95 }}
+    className={cn(
+      "p-2.5 rounded-xl text-slate-500 hover:text-slate-900 hover:bg-black/[0.04] dark:text-slate-400 dark:hover:text-white dark:hover:bg-white/[0.08] transition-all disabled:opacity-20 disabled:cursor-not-allowed",
+      className
+    )}
+    onClick={onClick}
+    disabled={disabled}
+    title={label}
+  >
+    {icon}
+  </motion.button>
 );
 
-export const FloatingToolbar: React.FC<FloatingToolbarProps> = ({
-  onAddElement,
-  onPublish,
-  onDelete,
-  onDuplicate,
-  onMoveUp,
-  onMoveDown,
-  hasSelection,
-  isPublishing = false,
-}) => {
+const Divider = () => <div className="w-px h-6 bg-black/[0.08] dark:bg-white/[0.08] mx-1" />;
+
+export const FloatingToolbar: React.FC<FloatingToolbarProps> = (props) => {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.95 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
-      // Added shadow-xl and backdrop-blur for a more 'substantial' feel
-      className="flex items-center gap-1 p-2 bg-white/95 dark:bg-slate-900/95 backdrop-blur-xl rounded-2xl shadow-2xl border border-slate-200/50 dark:border-white/10"
+      initial={{ opacity: 0, y: 15 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex items-center gap-1.5 p-1.5 bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-3xl rounded-[1.5rem] shadow-[0_20px_50px_rgba(0,0,0,0.2)] dark:shadow-[0_20px_50px_rgba(0,0,0,0.5)] border border-black/[0.05] dark:border-white/[0.05]"
     >
-      {/* --- Section 1: Shape Tools --- */}
-      <div className="flex items-center gap-1">
-        <ToolButton
-          icon={<Square size={22} strokeWidth={2} />}
-          label="Add Rectangle"
-          onClick={() => onAddElement('rect')}
-        />
-        <ToolButton
-          icon={<Circle size={22} strokeWidth={2} />}
-          label="Add Circle"
-          onClick={() => onAddElement('circle')}
-        />
-        <ToolButton
-          icon={<Hexagon size={22} strokeWidth={2} />}
-          label="Add Polygon"
-          onClick={() => onAddElement('polygon')}
-        />
-        <ToolButton
-          icon={<Type size={22} strokeWidth={2} />}
-          label="Add Text"
-          onClick={() => onAddElement('text')}
-        />
+      <div className="flex items-center">
+        <ToolButton icon={<Square size={19} strokeWidth={2.5}/>} label="Square" onClick={() => props.onAddElement('rect')} />
+        <ToolButton icon={<Circle size={19} strokeWidth={2.5}/>} label="Circle" onClick={() => props.onAddElement('circle')} />
+        <ToolButton icon={<Hexagon size={19} strokeWidth={2.5}/>} label="Polygon" onClick={() => props.onAddElement('polygon')} />
+        <ToolButton icon={<Type size={19} strokeWidth={2.5}/>} label="Text" onClick={() => props.onAddElement('text')} />
       </div>
 
       <Divider />
 
-      {/* --- Section 2: Manipulation Tools --- */}
-      <div className="flex items-center gap-1">
-        <ToolButton
-          icon={<Copy size={22} strokeWidth={2} />}
-          label="Duplicate"
-          onClick={() => onDuplicate?.()}
-          disabled={!hasSelection}
-        />
-        <ToolButton
-          icon={<ChevronUp size={22} strokeWidth={2} />}
-          label="Move Forward"
-          onClick={() => onMoveUp?.()}
-          disabled={!hasSelection}
-        />
-        <ToolButton
-          icon={<ChevronDown size={22} strokeWidth={2} />}
-          label="Move Backward"
-          onClick={() => onMoveDown?.()}
-          disabled={!hasSelection}
-        />
+      <div className="flex items-center">
+        <ToolButton icon={<Copy size={18}/>} label="Duplicate" onClick={props.onDuplicate} disabled={!props.hasSelection} />
+        <ToolButton icon={<ChevronUp size={18}/>} label="Move Up" onClick={props.onMoveUp} disabled={!props.hasSelection} />
+        <ToolButton icon={<ChevronDown size={18}/>} label="Move Down" onClick={props.onMoveDown} disabled={!props.hasSelection} />
       </div>
 
       <Divider />
 
-      {/* --- Section 3: Delete --- */}
-      <div className="flex items-center gap-1">
-        <ToolButton
-          icon={<Trash2 size={22} strokeWidth={2} />}
-          label="Delete"
-          onClick={() => onDelete?.()}
-          className="hover:text-red-600 hover:bg-red-50 dark:hover:text-red-400 dark:hover:bg-red-900/30"
-          disabled={!hasSelection}
-        />
-      </div>
+      <ToolButton 
+        icon={<Trash2 size={18}/>} 
+        label="Delete" 
+        onClick={props.onDelete} 
+        disabled={!props.hasSelection}
+        className="hover:text-red-500 hover:bg-red-500/10" 
+      />
 
-      <Divider />
-
-      {/* --- Section 4: Publish --- */}
-      <div className="pl-1 pr-1">
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={onPublish}
-          disabled={isPublishing}
-          // Made this button larger and more prominent
-          className="h-12 px-6 flex items-center gap-2 rounded-md bg-primary hover:bg-primary/80 text-white shadow-lg shadow-blue-500/30 transition-all disabled:opacity-70 disabled:cursor-not-allowed disabled:shadow-none"
-          title="Publish Campaign"
-        >
-          <Share2 size={20} strokeWidth={2.5} />
-          <span className="font-semibold text-sm">Publish</span>
-        </motion.button>
-      </div>
+      <motion.button
+        whileHover={{ scale: 1.02 }}
+        whileTap={{ scale: 0.98 }}
+        onClick={props.onPublish}
+        disabled={props.isPublishing}
+        className="ml-2 h-10 px-5 flex items-center gap-2 rounded-2xl bg-blue-600 hover:bg-blue-700 text-white shadow-lg shadow-blue-500/25 transition-all disabled:opacity-50"
+      >
+        <Share2 size={16} strokeWidth={3} />
+        <span className="font-bold text-[12px]">Publish</span>
+      </motion.button>
     </motion.div>
   );
 };

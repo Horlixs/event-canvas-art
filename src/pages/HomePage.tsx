@@ -2,78 +2,27 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Users, Share2, UploadCloud, Star, Quote, Moon, Sun, Sparkles, LayoutDashboard, Clock3, ShieldCheck, Palette, Zap, Globe2, Camera, BarChart3 } from "lucide-react";
+import { 
+  ArrowRight, Users, Share2, UploadCloud, 
+  ChevronRight, LayoutDashboard, Zap, 
+  Camera, Globe2, BarChart3, Shield, Moon, Sun 
+} from "lucide-react";
 
-// --- ANIMATION COMPONENTS ---
-
-const FadeIn = ({ children, delay = 0, className = "" }) => (
-  <motion.div
-    initial={{ opacity: 0, y: 30 }}
+// --- REFINED ANIMATION ---
+const SectionWrapper = ({ children, className = "" }) => (
+  <motion.section
+    initial={{ opacity: 0, y: 40 }}
     whileInView={{ opacity: 1, y: 0 }}
-    viewport={{ once: true, margin: "-50px" }}
-    transition={{ duration: 0.7, ease: [0.21, 0.47, 0.32, 0.98], delay }}
+    viewport={{ once: true, margin: "-100px" }}
+    transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
     className={className}
   >
     {children}
-  </motion.div>
+  </motion.section>
 );
 
-// --- DATA ---
-
-const campaignHooks = [
-  { verb: "Hype Your", noun: "Next Event", color: "from-blue-600 to-cyan-500" },
-  { verb: "Grow Your", noun: "Community", color: "from-emerald-500 to-green-600" },
-  { verb: "Launch Your", noun: "New Brand", color: "from-purple-600 to-pink-500" },
-  { verb: "Spread Your", noun: "Movement", color: "from-orange-500 to-red-600" },
-  { verb: "Celebrate Your", noun: "Birthday", color: "from-yellow-500 to-amber-600" }
-];
-
-const campaignExamples = [
-  "Tech Summit 2025", "DevFest Lagos", "Product Launch", "Community Meetup",
-  "Wedding RSVP", "Birthday Bash", "Hackathon v1.0", "Charity Walk"
-];
-
-const stats = [
-  { label: "Active campaigns", value: "1,240", trend: "+12%" },
-  { label: "DPs rendered", value: "2.6M", trend: "+340k" },
-  { label: "Avg. share time", value: "28s", trend: "Realtime" },
-];
-
-const quickActions = [
-  {
-    title: "Instant Studio",
-    desc: "Drop a PNG frame and publish a share link in under a minute.",
-    icon: LayoutDashboard,
-    cta: "Open editor",
-    href: "/create",
-  },
-  {
-    title: "Launchpad",
-    desc: "Generate a public link and track how fast your DP spreads.",
-    icon: Zap,
-    cta: "Ship a drop",
-    href: "/create",
-  },
-  {
-    title: "Preview wall",
-    desc: "Upload a sample photo to see how your frame feels on profile pics.",
-    icon: Camera,
-    cta: "Try a preview",
-    href: "/create",
-  },
-];
-
-const templateShowcase = [
-  { title: "Tech Conference", tag: "Clean grid", accent: "from-sky-400/40 to-blue-500/20" },
-  { title: "Community Meetup", tag: "Rounded mask", accent: "from-emerald-400/40 to-teal-500/20" },
-  { title: "Product Drop", tag: "Bold headline", accent: "from-purple-400/40 to-pink-500/20" },
-];
-
 const Homepage = () => {
-  const [current, setCurrent] = useState(0);
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "light");
-  const [hookIndex, setHookIndex] = useState(0);
-  const visibleCount = 3;
+  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -86,508 +35,204 @@ const Homepage = () => {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      handleNext();
-    }, 4000);
-    return () => clearInterval(interval);
-  }, [current]);
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-        setHookIndex((prev) => (prev + 1) % campaignHooks.length);
-    }, 3000);
-    return () => clearInterval(interval);
-  }, []);
-
-  const handleNext = () => {
-    setCurrent((prev) => (prev + 1) % campaignExamples.length);
-  };
-
-  const handlePrev = () => {
-    setCurrent((prev) =>
-      prev === 0 ? campaignExamples.length - 1 : prev - 1
-    );
-  };
-
-  const displayCampaigns = [...campaignExamples, ...campaignExamples.slice(0, visibleCount)];
-  const activeHook = campaignHooks[hookIndex];
-
   return (
-    <main className="min-h-screen bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100 relative overflow-x-hidden selection:bg-primary/20 transition-colors duration-300">
+    <main className="min-h-screen bg-[#fafafa] dark:bg-[#000] text-[#1d1d1f] dark:text-[#f5f5f7] selection:bg-blue-500/30 font-sans tracking-tight transition-colors duration-500">
       
-      {/* GLOBAL BACKGROUND ELEMENTS */}
-      <div className="fixed inset-0 -z-10 h-full w-full bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:14px_24px] dark:opacity-20"></div>
-      <div className="fixed top-0 left-0 right-0 h-[500px] bg-primary/5 blur-[120px] rounded-full pointer-events-none -z-10 -translate-y-1/2" />
-
-      {/* NAVBAR */}
-      <header className="w-full fixed top-0 z-50 border-b border-slate-200 dark:border-white/10 bg-white/60 dark:bg-slate-950/60 backdrop-blur-xl transition-colors duration-300">
-        <div className="max-w-7xl mx-auto flex items-center justify-between px-6 py-4">
-          <Link to="/" className="flex items-center gap-2 text-2xl font-bold tracking-tighter">
-            <div className="w-8 h-8 rounded bg-primary flex items-center justify-center text-primary-foreground text-sm">DP</div>
-            <span>DPLab.com</span>
+      {/* 1. NAV - Restored All Links */}
+      <header className="fixed top-0 w-full z-[100] border-b border-black/[0.05] dark:border-white/[0.05] bg-white/70 dark:bg-black/70 backdrop-blur-2xl">
+        <div className="max-w-[1440px] mx-auto h-14 flex items-center justify-between px-6">
+          <Link to="/" className="text-xl font-semibold tracking-tighter hover:opacity-70 transition-opacity">
+            Dummy<span className="text-blue-500">.</span>
           </Link>
           
-          <div className="flex items-center gap-4 md:gap-8">
-            <nav className="hidden md:flex gap-8 font-medium text-sm text-slate-500 dark:text-slate-400">
-                {["Create Campaign", "Explore", "Pricing", "About"].map((item) => (
-                <Link key={item} to={`/${item.toLowerCase().replace(" ", "-")}`} className="hover:text-primary transition-colors">
-                    {item}
-                </Link>
-                ))}
-            </nav>
+          <nav className="hidden md:flex gap-8 text-[13px] font-medium opacity-80">
+            {["Create Campaign", "Explore", "Pricing", "About"].map((item) => (
+              <Link 
+                key={item} 
+                to={`/${item.toLowerCase().replace(" ", "-")}`} 
+                className="hover:text-blue-500 transition-colors"
+              >
+                {item}
+              </Link>
+            ))}
+          </nav>
 
-            <button 
-                onClick={toggleTheme} 
-                className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors text-slate-600 dark:text-slate-300"
-                aria-label="Toggle theme"
-            >
-                <AnimatePresence mode="wait" initial={false}>
-                    <motion.div
-                        key={theme}
-                        initial={{ y: -20, opacity: 0 }}
-                        animate={{ y: 0, opacity: 1 }}
-                        exit={{ y: 20, opacity: 0 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
-                    </motion.div>
-                </AnimatePresence>
+          <div className="flex items-center gap-4">
+            <button onClick={toggleTheme} className="p-2 opacity-60 hover:opacity-100 transition-opacity">
+              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            
-            <Link to="/create" className="md:block hidden">
-                <Button size="sm" className="rounded-sm px-6 h-12 shadow-lg shadow-primary/20">Create Campaign</Button>
+            <Link to="/login">
+                <Button variant="ghost" className="text-[13px] h-8 rounded-full">Sign In</Button>
+            </Link>
+            <Link to="/create">
+                <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] h-8 px-4 rounded-full transition-all">
+                Get Started
+                </Button>
             </Link>
           </div>
         </div>
       </header>
 
-      {/* HERO SECTION */}
-      <section className="max-w-6xl mx-auto px-6 pt-32 pb-24 md:pt-40 relative z-10">
-        <motion.div
-          initial={{ opacity: 0, y: 30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, ease: [0.21, 0.47, 0.32, 0.98] }}
-          className="text-center flex flex-col items-center"
-        >
-          <div className="inline-flex items-center rounded-full border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-900/50 px-3 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 mb-8 backdrop-blur-sm">
-            <span className="flex h-2 w-2 rounded-full bg-primary mr-2 animate-pulse"></span>
-            Trusted by 5,000+ Organizers
-          </div>
-
-          <div className="min-h-[160px] md:min-h-[120px] flex items-center justify-center">
-            <h1 className="text-4xl md:text-7xl font-bold tracking-tight leading-[1.15] max-w-5xl text-slate-900 dark:text-white flex flex-col md:block items-center justify-center">
-                <AnimatePresence mode="wait">
-                    <motion.div
-                        key={hookIndex}
-                        initial={{ y: 20, opacity: 0, filter: "blur(4px)" }}
-                        animate={{ y: 0, opacity: 1, filter: "blur(0px)" }}
-                        exit={{ y: -20, opacity: 0, filter: "blur(4px)" }}
-                        transition={{ duration: 0.4, ease: "easeOut" }}
-                        className="inline-flex flex-wrap justify-center gap-x-2 md:gap-x-4 mb-2 md:mb-0"
-                    >
-                        <span>{activeHook.verb}</span>
-                        <span className={`text-transparent bg-clip-text bg-gradient-to-r ${activeHook.color}`}>
-                            {activeHook.noun}
-                        </span>
-                    </motion.div>
-                </AnimatePresence>
-                
-                <br /><span className="md:ml-3">
-                    With DPs.
-                </span>
-            </h1>
-          </div>
-          
-          <motion.p 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2, duration: 0.8 }}
-            className="max-w-2xl mx-auto mt-6 text-lg text-slate-500 dark:text-slate-400 leading-relaxed px-4 md:px-0"
+      {/* 2. HERO - Fixed Gallery Link */}
+      <section className="relative pt-44 pb-32 overflow-hidden text-center">
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_0%,rgba(0,113,227,0.12),transparent_50%)]" />
+        
+        <div className="max-w-4xl mx-auto px-6 relative z-10">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 1, ease: [0.16, 1, 0.3, 1] }}
           >
-            Upload your design frame, create a custom link, and let your audience generate personalized DPs in seconds. The ultimate tool for massive visibility.
-          </motion.p>
-          
-          <motion.div 
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.8 }}
-            className="mt-10 flex flex-col sm:flex-row justify-center gap-4 w-full sm:w-auto px-6 md:px-0"
-          >
-            <Link to="/create" className="w-full sm:w-auto">
-              <Button size="lg" className="rounded-full w-full sm:w-auto px-8 py-4 h-auto text-base md:text-lg shadow-xl shadow-primary/20 hover:shadow-primary/40 transition-all duration-300">
-                Start Your Campaign
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-            <Link to="/explore" className="w-full sm:w-auto">
-              <Button variant="outline" size="lg" className="rounded-full w-full sm:w-auto px-8 py-4 h-auto text-base md:text-lg backdrop-blur-sm bg-white/50 dark:bg-slate-800/50 hover:bg-slate-100 dark:hover:bg-slate-800 dark:border-slate-700 dark:text-white">
-                See Examples
-              </Button>
-            </Link>
-          </motion.div>
-
-          <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.6 }}
-            className="mt-10 flex items-center gap-4 text-sm text-slate-500 dark:text-slate-400"
-          >
-             <div className="flex -space-x-3">
-                {[1,2,3,4].map((i) => (
-                    <div key={i} className="w-8 h-8 rounded-full border-2 border-white dark:border-slate-900 bg-zinc-200 dark:bg-zinc-700" />
-                ))}
-             </div>
-             <p>Joined by 120k+ attendees this month</p>
-          </motion.div>
-        </motion.div>
-      </section>
-
-      {/* MINIMAL OVERVIEW */}
-      <section className="max-w-6xl mx-auto px-6 pb-12 md:pb-16">
-        <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-          {stats.map((item, i) => (
-            <div
-              key={item.label}
-              className="p-5 md:p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 backdrop-blur-sm flex items-center justify-between"
-            >
-              <div>
-                <p className="text-xs uppercase tracking-[0.15em] text-slate-500 dark:text-slate-400">{item.label}</p>
-                <p className="text-2xl md:text-3xl font-semibold mt-2 text-slate-900 dark:text-white">{item.value}</p>
-              </div>
-              <span className="text-xs font-semibold px-3 py-1 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
-                {item.trend}
+            <span className="inline-block px-4 py-1.5 rounded-full bg-blue-500/10 text-blue-500 text-[13px] font-semibold mb-6">
+              Edit your dummies in Minutes
+            </span>
+            <h1 className="text-5xl md:text-8xl font-bold tracking-tight leading-[1.05] mb-8">
+              Momentum, <br /> 
+              <span className="text-transparent bg-clip-text bg-gradient-to-b from-[#1d1d1f] to-[#86868b] dark:from-[#f5f5f7] dark:to-[#86868b]">
+                made effortless
               </span>
+            </h1>
+            <p className="text-lg md:text-2xl text-[#86868b] max-w-2xl mx-auto leading-relaxed mb-12">
+              Transform your template into a viral movement. One frame, 
+              infinite personalized updates, zero friction.
+            </p>
+            <div className="flex flex-col sm:flex-row justify-center gap-6">
+              <Link to="/create">
+                <Button className="bg-[#1d1d1f] dark:bg-[#f5f5f7] text-white dark:text-black rounded-full px-10 py-7 text-lg font-medium hover:scale-[1.02] active:scale-95 transition-all">
+                    Launch your campaign
+                </Button>
+              </Link>
+              <Link to="/explore" className="flex items-center justify-center gap-2 group text-lg font-medium hover:opacity-70 transition-opacity">
+                See the gallery <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
+              </Link>
             </div>
-          ))}
+          </motion.div>
         </div>
       </section>
 
-      {/* QUICK ACTIONS */}
-      <section className="max-w-6xl mx-auto px-6 pb-12 md:pb-20">
-        <div className="flex items-center justify-between gap-4 mb-6">
-          <div>
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Workspace</p>
-            <h2 className="text-2xl md:text-3xl font-semibold text-slate-900 dark:text-white">Minimal actions</h2>
-          </div>
-          <div className="hidden md:flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-            <ShieldCheck className="w-4 h-4" />
-            Private by default. Share when ready.
-          </div>
-        </div>
+      {/* 3. BENTO GRID - Fixed Internal Route Links */}
+      <SectionWrapper className="max-w-[1200px] mx-auto px-6 py-20">
+        <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-full">
+          {/* Main Card */}
+          <Link to="/create" className="md:col-span-8 group relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#121212] p-10 border border-black/[0.03] dark:border-white/[0.03] shadow-sm transition-all hover:shadow-xl">
+             <div className="relative z-10">
+               <Zap className="text-blue-500 mb-6" />
+               <h3 className="text-3xl font-bold mb-4">Instant Studio</h3>
+               <p className="text-[#86868b] max-w-sm mb-6">Drop an image frame and publish in seconds. Our engine handles the rest.</p>
+               <span className="text-blue-500 font-medium flex items-center gap-1">Open editor <ArrowRight size={14}/></span>
+             </div>
+             <div className="absolute bottom-[-20%] right-[-10%] w-2/3 aspect-square bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
+          </Link>
 
-        <div className="grid md:grid-cols-3 gap-4 md:gap-6">
-          {quickActions.map((item) => (
-            <Link key={item.title} to={item.href} className="group p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 hover:border-primary/40 hover:-translate-y-1 transition-all duration-200">
-              <div className="flex items-start justify-between gap-2 mb-6">
-                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200">
-                  <item.icon className="w-5 h-5" />
-                </div>
-                <ArrowRight className="w-4 h-4 text-slate-400 group-hover:text-primary" />
-              </div>
-              <h3 className="text-lg font-semibold text-slate-900 dark:text-white mb-2">{item.title}</h3>
-              <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed mb-4">{item.desc}</p>
-              <span className="text-sm font-semibold text-primary group-hover:underline">{item.cta}</span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* FEATURES */}
-      <section className="bg-slate-50/50 dark:bg-white/5 border-y border-slate-200 dark:border-white/5 py-24 transition-colors duration-300">
-        <div className="max-w-6xl mx-auto px-6 grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-          {[
-            { icon: UploadCloud, title: "1. Upload Design", desc: "Upload your event flyer or brand frame. Our tool automatically sets up the image area for your users.", color: "text-amber-500" },
-            { icon: Share2, title: "2. Share Link", desc: "Get a unique link (e.g., dplab.com/my-eventdp) and share it with your community across socials.", color: "text-blue-500" },
-            { icon: Users, title: "3. Viral Growth", desc: "Users upload their photo, personalize it, and share the result instantly. Watch the momentum build.", color: "text-emerald-500" }
-          ].map((feature, i) => (
-            <FadeIn key={i} delay={i * 0.1}>
-                <div className="group p-8 bg-white dark:bg-slate-900 backdrop-blur-sm rounded-3xl border border-slate-200 dark:border-slate-800 hover:border-primary/20 dark:hover:border-primary/40 hover:shadow-lg transition-all duration-300 h-full">
-                <div className={`w-14 h-14 mx-auto rounded-2xl bg-slate-50 dark:bg-slate-800 shadow-sm flex items-center justify-center mb-6 group-hover:scale-110 transition-transform duration-300 ${feature.color}`}>
-                    <feature.icon className="w-7 h-7" />
-                </div>
-                <h3 className="text-xl font-bold mb-3 dark:text-white">{feature.title}</h3>
-                <p className="text-slate-500 dark:text-slate-400 leading-relaxed">
-                    {feature.desc}
-                </p>
-                </div>
-            </FadeIn>
-          ))}
-        </div>
-      </section>
-
-      {/* TEMPLATES */}
-      <section className="py-20 bg-white dark:bg-slate-950 transition-colors duration-300">
-        <div className="max-w-6xl mx-auto px-6 space-y-10">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
+          {/* Side Card */}
+          <Link to="/explore" className="md:col-span-4 group rounded-[2rem] bg-[#f5f5f7] dark:bg-[#1d1d1f] p-10 flex flex-col justify-between hover:opacity-90 transition-all">
+            <Globe2 className="text-emerald-500" />
             <div>
-              <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-2">Minimal presets</p>
-              <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Starter frames to remix</h2>
-              <p className="text-slate-500 dark:text-slate-400 mt-3 max-w-2xl">
-                Pick a calm base, swap your brand colors, and publish a link without designing from scratch.
+              <h3 className="text-xl font-bold mb-2">Reach Global Audience</h3>
+              <p className="text-sm text-[#86868b]">2.6M Dummies edited across 40+ countries this month.</p>
+            </div>
+          </Link>
+
+          {/* Analytics Card */}
+          <div className="md:col-span-4 rounded-[2rem] border border-black/[0.05] dark:border-white/[0.05] p-10 bg-white dark:bg-transparent">
+            <BarChart3 className="text-purple-500 mb-6" />
+            <h3 className="text-xl font-bold mb-2">Realtime Insights</h3>
+            <p className="text-sm text-[#86868b]">Track conversion rates, clicks, and renders as they happen.</p>
+          </div>
+
+          {/* Safety Card */}
+          <div className="md:col-span-8 rounded-[2rem] bg-[#0071e3] text-white p-10 flex items-center justify-between overflow-hidden relative">
+            <div className="relative z-10">
+              <h3 className="text-3xl font-bold mb-2">Secure by Design.</h3>
+              <p className="opacity-80 max-w-xs">Links are private until you publish, with revocable URLs and end-to-end privacy.</p>
+            </div>
+            <Shield className="w-32 h-32 opacity-10 absolute right-[-10px]" />
+          </div>
+        </div>
+      </SectionWrapper>
+
+      {/* 4. SHOWCASE - Generic Links */}
+      <SectionWrapper className="bg-[#f5f5f7] dark:bg-[#121212] py-32 mt-20">
+        <div className="max-w-[1200px] mx-auto px-6 text-center">
+          <h2 className="text-4xl md:text-6xl font-bold mb-20 tracking-tight">Built for every scale.</h2>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-12 opacity-50">
+             <div className="font-bold text-2xl cursor-default">TECH.CV</div>
+             <div className="font-bold text-2xl cursor-default">Lumina</div>
+             <div className="font-bold text-2xl cursor-default">Summit'25</div>
+             <div className="font-bold text-2xl cursor-default">Nexus</div>
+          </div>
+          <Link to="/explore">
+            <Button variant="outline" className="mt-20 rounded-full border-black/10 dark:border-white/10 h-12 px-8 hover:bg-black/5 dark:hover:bg-white/5">
+                Browse all campaigns
+            </Button>
+          </Link>
+        </div>
+      </SectionWrapper>
+
+      {/* 5. FOOTER - Full Link Restoration */}
+      <footer className="pt-32 pb-12 px-6">
+        <div className="max-w-[1200px] mx-auto">
+          <div className="flex flex-col md:flex-row justify-between gap-16 pb-20 border-b border-black/[0.05] dark:border-white/[0.05]">
+            <div className="max-w-xs">
+              <Link to="/" className="text-xl font-bold tracking-tighter">Dummy</Link>
+              <p className="mt-4 text-[13px] text-[#86868b] leading-relaxed">
+                Elevating community engagement through world-class design tools. Built in Lagos for the world.
               </p>
             </div>
-            <Link to="/create">
-              <Button variant="ghost" className="rounded-full border border-slate-200 dark:border-slate-800 px-5">
-                Browse library
-                <ArrowRight className="w-4 h-4 ml-2" />
-              </Button>
-            </Link>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-6">
-            {templateShowcase.map((template, i) => (
-              <FadeIn key={template.title} delay={i * 0.05}>
-                <div className="rounded-3xl border border-slate-200 dark:border-slate-800 overflow-hidden bg-white dark:bg-slate-900 shadow-sm hover:-translate-y-1 transition-all duration-200">
-                  <div className={`aspect-[4/5] bg-gradient-to-br ${template.accent} relative`}>
-                    <div className="absolute inset-6 rounded-2xl bg-white/80 dark:bg-black/40 backdrop-blur-sm border border-white/50 dark:border-white/10"></div>
-                    <div className="absolute inset-12 rounded-2xl border border-dashed border-white/40 dark:border-white/20"></div>
-                    <div className="absolute bottom-6 left-6 px-3 py-2 rounded-full bg-white/90 dark:bg-black/60 text-xs font-medium text-slate-700 dark:text-slate-200">
-                      {template.tag}
-                    </div>
-                  </div>
-                  <div className="p-5 flex items-center justify-between">
-                    <div>
-                      <p className="text-sm text-slate-500 dark:text-slate-400">Template</p>
-                      <p className="font-semibold text-slate-900 dark:text-white">{template.title}</p>
-                    </div>
-                    <div className="flex items-center gap-1 text-xs text-slate-500 dark:text-slate-400">
-                      <Globe2 className="w-4 h-4" />
-                      Public link ready
-                    </div>
-                  </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CAROUSEL */}
-      <section className="py-24 relative overflow-hidden bg-slate-900 dark:bg-black text-white transition-colors duration-300">
-        <div className="absolute top-0 left-1/4 w-96 h-96 bg-primary/20 blur-[100px] rounded-full pointer-events-none mix-blend-screen" />
-        <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-purple-500/20 blur-[100px] rounded-full pointer-events-none mix-blend-screen" />
-
-        <div className="max-w-6xl mx-auto px-6 text-center relative z-10">
-          <FadeIn>
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">
-                Trending Campaigns
-            </h2>
-            <p className="text-slate-400 mb-12 max-w-2xl mx-auto">
-                See how other leaders are using our DPLab to hype their movements.
-            </p>
-          </FadeIn>
-
-          <FadeIn delay={0.2} className="relative overflow-hidden p-4 -mx-4">
-            <motion.div
-              className="flex gap-6 md:gap-8"
-              animate={{ x: `-${(current * 100) / visibleCount}%` }}
-              transition={{ type: "spring", stiffness: 300, damping: 30 }}
-            >
-              {displayCampaigns.map((name, i) => (
-                <div
-                  key={i}
-                  className="flex-shrink-0 w-[85vw] md:w-[calc(33.333%-1.5rem)] bg-white/5 backdrop-blur-md border border-white/10 rounded-2xl shadow-xl hover:bg-white/10 transition-all duration-300 aspect-square flex flex-col items-center justify-center cursor-pointer group relative overflow-hidden"
-                >
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-50" />
-                  
-                  <div className="w-24 h-24 rounded-full bg-white/10 border border-white/20 group-hover:bg-primary/20 group-hover:border-primary/50 transition-colors flex items-center justify-center mb-4 relative z-10">
-                     <span className="text-3xl font-bold text-white/70 group-hover:text-white transition-colors">{name.charAt(0)}</span>
-                  </div>
-                  <span className="font-semibold text-lg z-10 relative">{name}</span>
-                  <p className="text-xs text-slate-400 mt-1 z-10 relative">500+ DPs Generated</p>
-                </div>
-              ))}
-            </motion.div>
-
-            <div className="flex justify-center gap-4 mt-10">
-                <button onClick={handlePrev} className="w-12 h-12 rounded-full border border-white/20 bg-white/5 hover:bg-white/10 text-white flex items-center justify-center transition-colors backdrop-blur-sm">
-                    <ArrowRight className="w-5 h-5 rotate-180" />
-                </button>
-                <button onClick={handleNext} className="w-12 h-12 rounded-full bg-white text-slate-900 hover:bg-white/90 flex items-center justify-center transition-colors shadow-lg shadow-white/10">
-                    <ArrowRight className="w-5 h-5" />
-                </button>
-            </div>
-          </FadeIn>
-        </div>
-      </section>
-
-      {/* TOOLKIT */}
-      <section className="py-20 bg-slate-50/50 dark:bg-white/5 border-y border-slate-200 dark:border-white/5 transition-colors duration-300">
-        <div className="max-w-6xl mx-auto px-6 space-y-10">
-          <FadeIn>
-            <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-              <div>
-                <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400 mb-2">Calm toolkit</p>
-                <h2 className="text-3xl font-bold text-slate-900 dark:text-white">Everything you need, nothing extra</h2>
-                <p className="text-slate-500 dark:text-slate-400 mt-3 max-w-2xl">
-                  A focused set of controls to keep teams shipping fast while the UI stays quiet.
-                </p>
-              </div>
-              <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 bg-white/70 dark:bg-slate-900/50 px-4 py-2 rounded-full border border-slate-200 dark:border-slate-800">
-                <Sparkles className="w-4 h-4 text-primary" />
-                Minimal by default
-              </div>
-            </div>
-          </FadeIn>
-
-          <div className="grid md:grid-cols-4 gap-4 md:gap-6">
-            {[
-              { title: "Color-safe overlays", icon: Palette, copy: "Stay on-brand with live color tokens and contrast hints." },
-              { title: "Realtime preview", icon: Clock3, copy: "See the DP update with every slider change—no reloads." },
-              { title: "Share analytics", icon: BarChart3, copy: "Monitor clicks, renders, and shares in a clean panel." },
-              { title: "Secure by default", icon: ShieldCheck, copy: "Links are private until you publish, with revocable URLs." },
-            ].map((item) => (
-              <div key={item.title} className="p-6 rounded-2xl border border-slate-200 dark:border-slate-800 bg-white/70 dark:bg-slate-900/60 hover:-translate-y-1 transition-all duration-200">
-                <div className="p-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 w-fit mb-4">
-                  <item.icon className="w-5 h-5" />
-                </div>
-                <h3 className="font-semibold text-slate-900 dark:text-white mb-2">{item.title}</h3>
-                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">{item.copy}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* TESTIMONIALS */}
-      <section className="bg-slate-50/50 dark:bg-white/5 py-24 border-y border-slate-200 dark:border-white/5 transition-colors duration-300">
-        <div className="max-w-6xl mx-auto px-6">
-          <FadeIn className="text-center mb-16">
-            <h2 className="text-3xl font-bold mb-4 text-slate-900 dark:text-white">Success Stories</h2>
-            <p className="text-slate-500 dark:text-slate-400">See why communities love using our platform.</p>
-          </FadeIn>
-          
-          <div className="grid md:grid-cols-3 gap-8">
-            {[
-              { name: "Sarah J.", role: "Event Host", quote: "I uploaded my design, shared the link on WhatsApp, and woke up to 200 people using my DP design. Insane reach!" },
-              { name: "David K.", role: "Community Lead", quote: "The best part is I don't have to edit pictures manually for my members anymore. They do it themselves instantly." },
-              { name: "TechNexus Team", role: "Brand Launch", quote: "We used DPLab for our new product reveal. It created a massive buzz on Twitter before the launch even started." }
-            ].map((testimonial, i) => (
-              <FadeIn key={i} delay={i * 0.1}>
-                <div className="p-8 bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm relative transition-colors duration-300 h-full">
-                    <Quote className="absolute top-6 left-6 w-8 h-8 text-primary/10" />
-                    <div className="flex gap-1 mb-4 text-amber-500 justify-end">
-                        {[1,2,3,4,5].map(star => <Star key={star} className="w-4 h-4 fill-current" />)}
-                    </div>
-                    <p className="text-slate-700 dark:text-slate-300 mb-6 relative z-10 leading-relaxed">
-                    “{testimonial.quote}”
-                    </p>
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-200 to-gray-300 dark:from-gray-700 dark:to-gray-800" />
-                        <div>
-                            <span className="block font-semibold text-sm dark:text-white">{testimonial.name}</span>
-                            <span className="block text-xs text-slate-500 dark:text-slate-400">{testimonial.role}</span>
-                        </div>
-                    </div>
-                </div>
-              </FadeIn>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* FAQ */}
-      <section className="py-20 bg-white dark:bg-slate-950 transition-colors duration-300">
-        <div className="max-w-5xl mx-auto px-6 space-y-8">
-          <div className="text-center space-y-3">
-            <p className="text-xs uppercase tracking-[0.2em] text-slate-500 dark:text-slate-400">Quick answers</p>
-            <h2 className="text-3xl font-bold text-slate-900 dark:text-white">What people ask before launching</h2>
-          </div>
-          <div className="space-y-4">
-            {[
-              { q: "How fast can I publish a DP link?", a: "Most teams publish in under 2 minutes. Upload a frame, set the safe area, and hit share. We host the link for you." },
-              { q: "Do viewers need to sign up?", a: "No accounts required. They upload a photo, we render the DP in-browser, and they can download instantly." },
-              { q: "Can I remove a campaign after it goes live?", a: "Yes. Turn off or regenerate links anytime. Existing links respect your new setting immediately." },
-              { q: "Is there a free tier?", a: "You can launch personal or small community drops for free. Upgrading unlocks analytics, brand colors, and priority speed." },
-            ].map((item) => (
-              <details key={item.q} className="group border border-slate-200 dark:border-slate-800 rounded-2xl bg-white/70 dark:bg-slate-900/50 p-5 open:shadow-sm transition-all duration-200">
-                <summary className="flex items-center justify-between cursor-pointer text-slate-900 dark:text-white font-semibold">
-                  <span>{item.q}</span>
-                  <ArrowRight className="w-4 h-4 text-slate-400 group-open:rotate-90 transition-transform" />
-                </summary>
-                <p className="mt-3 text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
-                  {item.a}
-                </p>
-              </details>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* CTA SECTION - Updated Button Scaling */}
-      <section className="py-24 px-6 bg-white dark:bg-slate-950 transition-colors duration-300">
-        <FadeIn className="max-w-5xl mx-auto bg-primary rounded-3xl p-8 md:p-16 text-center text-primary-foreground relative overflow-hidden shadow-2xl">
-          <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2 blur-2xl" />
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-black/10 rounded-full translate-y-1/2 -translate-x-1/2 blur-2xl" />
-          
-          <div className="relative z-10 max-w-2xl mx-auto">
-            <h2 className="text-3xl md:text-4xl font-bold mb-6">
-                Ready to go viral?
-            </h2>
-            <p className="mb-10 text-lg text-primary-foreground/80">
-                Create your first campaign in under 2 minutes. No design skills needed.
-            </p>
-            
-            <div className="flex justify-center">
-            
-            <Link to="/create" className="md:block hidden">
-                 <Button 
-                    variant="secondary" 
-                    className="rounded-full w-full sm:w-auto px-8 py-4 md:px-10 md:py-4 h-auto text-base md:text-lg font-bold shadow-xl"
-                 >
-                    Create Campaign Now
-                 </Button>
-                 </Link>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-12">
+              <FooterGroup 
+                title="Product" 
+                links={[
+                    {name: "Create Campaign", path: "/create"},
+                    {name: "Explore", path: "/explore"},
+                    {name: "Pricing", path: "/pricing"},
+                    {name: "Templates", path: "/create"}
+                ]} 
+              />
+              <FooterGroup 
+                title="Company" 
+                links={[
+                    {name: "About Us", path: "/about"},
+                    {name: "Privacy Policy", path: "/privacy-policy"},
+                    {name: "Terms", path: "/terms"}
+                ]} 
+              />
+              <FooterGroup 
+                title="Connect" 
+                links={[
+                    {name: "Twitter", path: "#"},
+                    {name: "Instagram", path: "#"},
+                    {name: "LinkedIn", path: "#"}
+                ]} 
+              />
             </div>
           </div>
-        </FadeIn>
-      </section>
-
-      {/* FOOTER */}
-      <footer className="bg-slate-950 dark:bg-black text-slate-300 py-16 transition-colors duration-300">
-        <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 md:grid-cols-4 gap-12">
-          <div className="col-span-1 md:col-span-1">
-            <Link to="/" className="text-2xl font-bold text-white mb-4 block tracking-tight">DPLab.com</Link>
-            <p className="leading-relaxed text-sm text-slate-400">
-              The easiest way to create viral DP campaigns for events, communities, and brands.
-            </p>
+          <div className="pt-8 text-[12px] text-[#86868b] flex flex-col md:flex-row justify-between gap-4">
+            <p>© {new Date().getFullYear()} HSD Inc. All rights reserved.</p>
+            <div className="flex gap-6">
+              <p>Nigeria</p>
+              <p>English (US)</p>
+            </div>
           </div>
-
-          {[
-            { header: "Use Cases", links: ["Tech Conferences", "Brand Launches", "Community Drives", "Parties", "and much more..."] },
-            { header: "Company", links: ["About Us", "Blog", "Success Stories"] },
-            { header: "Support", links: ["Help Center", "Privacy Policy", "Terms"] },
-          ].map((col, i) => (
-              <div key={i}>
-                <h4 className="font-bold text-white mb-4">{col.header}</h4>
-                <ul className="space-y-3 text-sm">
-                    {col.links.map(link => (
-                        <li key={link}>
-                            <Link to={`/${link.toLowerCase().replace(' ', '-')}`} className="hover:text-white transition-colors">
-                                {link}
-                            </Link>
-                        </li>
-                    ))}
-                </ul>
-              </div>
-          ))}
-        </div>
-
-        <div className="border-t border-white/10 mx-6 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center text-sm gap-4 text-slate-500">
-          <div>© {new Date().getFullYear()} DPLab.com. All rights reserved.</div>
-          <div className="flex gap-6">
-             <a href="#" className="hover:text-white transition-colors">Twitter</a>
-             <a href="#" className="hover:text-white transition-colors">Instagram</a>
-             <a href="#" className="hover:text-white transition-colors">LinkedIn</a>
-          </div>
-        </div>
-        <div className="text-white/10 bg-clip-text bg-gradient-to-r text-[18vw]" >
-            DPLab.com
         </div>
       </footer>
     </main>
   );
 };
+
+const FooterGroup = ({ title, links }) => (
+  <div className="flex flex-col gap-3">
+    <h4 className="text-[12px] font-semibold uppercase tracking-widest text-[#1d1d1f] dark:text-[#f5f5f7] mb-2">{title}</h4>
+    {links.map(link => (
+      <Link 
+        key={link.name} 
+        to={link.path} 
+        className="text-[13px] text-[#86868b] hover:text-blue-500 transition-colors"
+      >
+        {link.name}
+      </Link>
+    ))}
+  </div>
+);
 
 export default Homepage;
