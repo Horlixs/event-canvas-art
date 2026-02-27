@@ -87,9 +87,10 @@ export const Editor: React.FC = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.code === 'Space' && !e.repeat) { e.preventDefault(); setIsSpacePressed(true); }
+      const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      if (e.code === 'Space' && !e.repeat && !inInput) { e.preventDefault(); setIsSpacePressed(true); }
       if (e.code === 'Delete' || e.code === 'Backspace') {
-        if (selectedId && !(e.target instanceof HTMLInputElement)) deleteElement(selectedId);
+        if (selectedId && !inInput) deleteElement(selectedId);
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -164,22 +165,40 @@ export const Editor: React.FC = () => {
     lastTouchCenter.current = null;
   }, []);
 
-  const handlePublish = useCallback(async () => {
-    if (elements.length === 0) return toast.error('Canvas is empty. Add elements first.');
-    if (!user) {
-      setShowAuthModal(true);
-      return;
-    }
+  const pendingPublishRef = useRef(false);
+
+  const doPublish = useCallback(async (userId: string) => {
     setIsPublishing(true);
     try {
-      const result = await publishTemplate(exportTemplate(), user.id);
+      const result = await publishTemplate(exportTemplate(), userId);
       if (result) {
         setPublishedUrl(`${window.location.origin}/dp/${result.slug}`);
         toast.success('Published successfully!');
+      } else {
+        toast.error('Publish failed. Please try again.');
       }
     } catch { toast.error('Publish failed. Please try again.'); } 
     finally { setIsPublishing(false); }
-  }, [elements, exportTemplate, user]);
+  }, [exportTemplate]);
+
+  const handlePublish = useCallback(async () => {
+    if (elements.length === 0) return toast.error('Canvas is empty. Add elements first.');
+    if (!user) {
+      pendingPublishRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    doPublish(user.id);
+  }, [elements, user, doPublish]);
+
+  // Auto-publish after successful login
+  useEffect(() => {
+    if (user && pendingPublishRef.current) {
+      pendingPublishRef.current = false;
+      setShowAuthModal(false);
+      doPublish(user.id);
+    }
+  }, [user, doPublish]);
 
   // Open sidebar on selection (mobile)
   useEffect(() => {
@@ -289,7 +308,7 @@ export const Editor: React.FC = () => {
               <CanvasStage
                 elements={elements} selectedId={selectedId} onSelect={setSelectedId}
                 onUpdate={updateElement} canvasSize={canvasSize} backgroundColor={backgroundColor}
-                backgroundImage={backgroundImage} stageRef={stageRef} zoom={camera.z}
+                backgroundImage={backgroundImage} stageRef={stageRef} userImage={null} zoom={camera.z}
               />
             </div>
           </div>
@@ -302,10 +321,10 @@ export const Editor: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => bgImageInputRef.current?.click()}
-                className="pointer-events-auto group flex flex-col items-center gap-5 p-10 md:p-14 rounded-3xl bg-white/70 dark:bg-[#1c1c1e]/70 backdrop-blur-2xl border-2 border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#0071e3]/40 dark:hover:border-[#0071e3]/40 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.98] max-w-[90vw]"
+                className="pointer-events-auto group flex flex-col items-center gap-5 p-10 md:p-14 rounded-3xl bg-white/70 dark:bg-[#000000] backdrop-blur-2xl border-2 border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#0071e3]/40 dark:hover:border-[#0071e3]/40 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.98] max-w-[90vw]"
               >
-                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center group-hover:bg-[#0071e3]/15 transition-colors">
-                  <Upload size={28} className="text-[#0071e3]" />
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#86868b]/15 flex items-center justify-center group-hover:bg-[#86868b]/25 transition-colors">
+                  <Upload size={28} className="text-[#ffffff]" />
                 </div>
                 <div className="text-center space-y-1.5">
                   <p className="text-[15px] md:text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">Upload your frame</p>
