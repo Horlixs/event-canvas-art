@@ -287,6 +287,30 @@ export const Editor: React.FC = () => {
             </div>
           </div>
 
+          {/* EMPTY STATE — Upload prompt when canvas is blank */}
+          {!backgroundImage && elements.length === 0 && (
+            <div className="absolute inset-0 z-40 flex items-center justify-center pointer-events-none">
+              <motion.button
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
+                onClick={() => bgImageInputRef.current?.click()}
+                className="pointer-events-auto group flex flex-col items-center gap-5 p-10 md:p-14 rounded-3xl bg-white/70 dark:bg-[#1c1c1e]/70 backdrop-blur-2xl border-2 border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#0071e3]/40 dark:hover:border-[#0071e3]/40 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.98] max-w-[90vw]"
+              >
+                <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center group-hover:bg-[#0071e3]/15 transition-colors">
+                  <Upload size={28} className="text-[#0071e3]" />
+                </div>
+                <div className="text-center space-y-1.5">
+                  <p className="text-[15px] md:text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">Upload your frame</p>
+                  <p className="text-[12px] md:text-[13px] text-[#86868b] max-w-[240px] leading-relaxed">
+                    Start by uploading the base image for your DP template
+                  </p>
+                </div>
+                <span className="text-[11px] font-medium text-[#86868b]/60 mt-1">PNG, JPG up to 10MB</span>
+              </motion.button>
+            </div>
+          )}
+
           {/* ZOOM HUD - Bottom left (hidden on mobile when toolbar overlaps) */}
           <div className="absolute bottom-6 left-3 md:left-6 hidden md:flex items-center gap-1 bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-xl border border-black/[0.05] dark:border-white/[0.05] p-1 rounded-full shadow-2xl z-50">
             <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full" onClick={() => setCamera({...camera, z: Math.max(camera.z - 0.1, 0.05)})}><ZoomOut size={13} /></Button>
