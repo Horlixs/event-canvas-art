@@ -17,18 +17,28 @@ export const publishTemplate = async (
 ): Promise<{ slug: string } | null> => {
   const slug = generateSlug();
 
-  const { error } = await supabase
+  const baseRow = {
+    slug,
+    name: template.name || 'Untitled Template',
+    elements: template.elements as unknown as Json,
+    background_color: template.backgroundColor,
+    background_image: template.backgroundImage || null,
+    canvas_width: template.width,
+    canvas_height: template.height,
+  };
+
+  // Try with user_id first; fall back without it if column doesn't exist yet
+  let { error } = await supabase
     .from('templates')
-    .insert({
-      slug,
-      name: template.name || 'Untitled Template',
-      elements: template.elements as unknown as Json,
-      background_color: template.backgroundColor,
-      background_image: template.backgroundImage || null,
-      canvas_width: template.width,
-      canvas_height: template.height,
-      user_id: userId,
-    } as any);
+    .insert({ ...baseRow, user_id: userId } as any);
+
+  if (error?.code === 'PGRST204') {
+    // user_id column not in schema yet — publish without it
+    console.warn('user_id column not found, publishing without ownership.');
+    ({ error } = await supabase
+      .from('templates')
+      .insert(baseRow as any));
+  }
 
   if (error) {
     console.error('Error publishing template:', error);
