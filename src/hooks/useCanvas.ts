@@ -10,6 +10,7 @@ export const useCanvas = () => {
   const [canvasSize, setCanvasSize] = useState({ width: 1080, height: 1080 }); // <-- expose setter
   const [backgroundColor, setBackgroundColor] = useState('#ffffff');
   const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
+  const [templateName, setTemplateName] = useState('Untitled Template');
 
   // --- Auto adjust canvas size when backgroundImage changes (optional) ---
   useEffect(() => {
@@ -139,13 +140,13 @@ export const useCanvas = () => {
   const clearSelection = useCallback(() => setSelectedId(null), []);
 
   const exportTemplate = useCallback(() => ({
-    name: 'Untitled Template',
+    name: templateName,
     width: canvasSize.width,
     height: canvasSize.height,
     elements,
     backgroundColor,
     backgroundImage,
-  }), [elements, canvasSize, backgroundColor, backgroundImage]);
+  }), [elements, canvasSize, backgroundColor, backgroundImage, templateName]);
 
   const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null }) => {
     setElements(template.elements);
@@ -164,6 +165,8 @@ export const useCanvas = () => {
     setBackgroundColor,
     backgroundImage,
     setBackgroundImage,
+    templateName,
+    setTemplateName,
     addElement,
     updateElement,
     deleteElement,

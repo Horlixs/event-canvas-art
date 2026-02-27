@@ -79,6 +79,7 @@ const PublishedDesign = () => {
             backgroundColor="transparent"
             backgroundImage={null}
             stageRef={stageRef}
+            userImage={null}
           />
         </div>
       </div>

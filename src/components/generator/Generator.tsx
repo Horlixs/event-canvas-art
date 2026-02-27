@@ -195,29 +195,138 @@ const GeneratorSkeleton: React.FC = () => (
 );
 
 // --- ERROR STATE ---
+const BrokenCanvasIllustration: React.FC = () => (
+  <svg viewBox="0 0 280 220" fill="none" xmlns="http://www.w3.org/2000/svg" className="w-full max-w-[280px]">
+    {/* Easel legs */}
+    <motion.g initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}>
+      <line x1="90" y1="160" x2="70" y2="210" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-[#c7c7cc] dark:text-[#48484a]" />
+      <line x1="190" y1="160" x2="210" y2="210" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-[#c7c7cc] dark:text-[#48484a]" />
+      <line x1="140" y1="160" x2="140" y2="205" stroke="currentColor" strokeWidth="3" strokeLinecap="round" className="text-[#c7c7cc] dark:text-[#48484a]" />
+    </motion.g>
+    {/* Canvas frame */}
+    <motion.rect
+      x="65" y="30" width="150" height="130" rx="6"
+      className="fill-[#f5f5f7] dark:fill-[#1c1c1e] stroke-[#d1d1d6] dark:stroke-[#3a3a3c]"
+      strokeWidth="2.5"
+      initial={{ opacity: 0, scale: 0.8 }} animate={{ opacity: 1, scale: 1 }}
+      transition={{ type: 'spring', damping: 20, stiffness: 200, delay: 0.1 }}
+    />
+    {/* Crack lines on canvas */}
+    <motion.path
+      d="M120 55 L145 80 L130 95 L155 120 L140 140"
+      className="stroke-[#ff3b30] dark:stroke-[#ff453a]"
+      strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"
+      initial={{ pathLength: 0, opacity: 0 }}
+      animate={{ pathLength: 1, opacity: 0.6 }}
+      transition={{ duration: 0.8, delay: 0.5, ease: "easeOut" }}
+    />
+    <motion.path
+      d="M145 80 L165 70"
+      className="stroke-[#ff3b30] dark:stroke-[#ff453a]"
+      strokeWidth="1.5" strokeLinecap="round" fill="none"
+      initial={{ pathLength: 0, opacity: 0 }}
+      animate={{ pathLength: 1, opacity: 0.4 }}
+      transition={{ duration: 0.4, delay: 0.9 }}
+    />
+    <motion.path
+      d="M130 95 L108 100"
+      className="stroke-[#ff3b30] dark:stroke-[#ff453a]"
+      strokeWidth="1.5" strokeLinecap="round" fill="none"
+      initial={{ pathLength: 0, opacity: 0 }}
+      animate={{ pathLength: 1, opacity: 0.4 }}
+      transition={{ duration: 0.4, delay: 1.0 }}
+    />
+    {/* Question mark */}
+    <motion.text
+      x="140" y="105" textAnchor="middle"
+      className="fill-[#aeaeb2] dark:fill-[#636366]"
+      fontSize="40" fontWeight="800" fontFamily="system-ui"
+      initial={{ opacity: 0, y: 5 }}
+      animate={{ opacity: 0.3, y: 0 }}
+      transition={{ delay: 0.7, duration: 0.5 }}
+    >?</motion.text>
+    {/* Floating pieces (broken fragments) */}
+    <motion.rect
+      x="195" y="45" width="18" height="14" rx="2"
+      className="fill-[#d1d1d6] dark:fill-[#3a3a3c]"
+      initial={{ opacity: 0, x: 0, y: 0, rotate: 0 }}
+      animate={{ opacity: 0.5, x: 8, y: -6, rotate: 15 }}
+      transition={{ delay: 0.6, duration: 0.6, ease: "easeOut" }}
+    />
+    <motion.rect
+      x="55" y="130" width="14" height="10" rx="2"
+      className="fill-[#d1d1d6] dark:fill-[#3a3a3c]"
+      initial={{ opacity: 0, x: 0, y: 0, rotate: 0 }}
+      animate={{ opacity: 0.4, x: -8, y: 6, rotate: -12 }}
+      transition={{ delay: 0.7, duration: 0.6, ease: "easeOut" }}
+    />
+    {/* Small dots for debris effect */}
+    <motion.circle cx="220" cy="55" r="3" className="fill-[#aeaeb2] dark:fill-[#636366]"
+      initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.3, scale: 1 }} transition={{ delay: 0.8 }}
+    />
+    <motion.circle cx="48" cy="125" r="2" className="fill-[#aeaeb2] dark:fill-[#636366]"
+      initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.25, scale: 1 }} transition={{ delay: 0.9 }}
+    />
+    <motion.circle cx="230" cy="70" r="2" className="fill-[#aeaeb2] dark:fill-[#636366]"
+      initial={{ opacity: 0, scale: 0 }} animate={{ opacity: 0.2, scale: 1 }} transition={{ delay: 1.0 }}
+    />
+  </svg>
+);
+
 const GeneratorError: React.FC<{ error: string }> = ({ error }) => (
   <div className="h-[100dvh] flex flex-col bg-[#fafafa] dark:bg-[#000]">
+    {/* Nav bar */}
     <div className="h-12 border-b border-black/5 dark:border-white/5 flex items-center px-4 gap-3">
       <Link to="/" className="flex items-center gap-2 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors">
         <ChevronLeft size={18} />
         <span className="text-sm font-medium">Back</span>
       </Link>
     </div>
-    <div className="flex-1 flex items-center justify-center p-8">
-      <div className="max-w-sm w-full text-center space-y-6">
-        <div className="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto">
-          <AlertCircle className="w-10 h-10 text-red-500" />
+    <div className="flex-1 flex items-center justify-center p-6 sm:p-8">
+      <motion.div 
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+        className="max-w-sm w-full text-center space-y-2"
+      >
+        {/* Illustration */}
+        <div className="flex justify-center">
+          <BrokenCanvasIllustration />
         </div>
-        <div className="space-y-2">
-          <h1 className="text-xl font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">Design Not Found</h1>
-          <p className="text-sm text-[#86868b] leading-relaxed">{error || 'This design may have been removed or the link is incorrect.'}</p>
-        </div>
-        <Link to="/">
-          <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-10 px-6 text-sm font-medium">
-            Go Home
-          </Button>
-        </Link>
-      </div>
+
+        {/* Text content */}
+        <motion.div 
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+          className="space-y-2"
+        >
+          <h1 className="text-[22px] sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
+            Design Not Found
+          </h1>
+          <p className="text-[14px] text-[#86868b] leading-relaxed max-w-[280px] mx-auto">
+            {error === 'Template not found' 
+              ? "This design may have been removed or the link might be incorrect." 
+              : error || "Something went wrong loading this design."}
+          </p>
+        </motion.div>
+
+        {/* Action buttons */}
+        <motion.div 
+          initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+          className="flex flex-col items-center gap-3 pt-4"
+        >
+          <Link to="/">
+            <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-11 px-7 text-[14px] font-semibold shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+              Go Home
+            </Button>
+          </Link>
+          <button 
+            onClick={() => window.location.reload()}
+            className="text-[13px] font-medium text-[#86868b] hover:text-[#0071e3] transition-colors"
+          >
+            Try again
+          </button>
+        </motion.div>
+      </motion.div>
     </div>
   </div>
 );
@@ -352,12 +461,34 @@ export const Generator: React.FC = () => {
     toast.success('Photo applied!');
   }, [currentCroppingId]);
 
+  const SITE_NAME = 'EventDP';
+  const SITE_URL = window.location.origin;
+
   const handleDownload = useCallback(() => {
     if (!stageRef.current) return;
     try {
       const uri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
+
+      // Build smart filename
+      const tplName = (template?.name || 'design').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '-');
+
+      // Check if there's a user-entered name in text fields
+      const nameTextEl = elements.find(
+        (el) => el.type === 'text' && (el as TextElement).text && (el as TextElement).text !== 'Your Text Here'
+      ) as TextElement | undefined;
+
+      let fileNameParts: string[];
+      if (nameTextEl) {
+        const firstName = nameTextEl.text.split(/\s+/)[0].replace(/[^a-zA-Z0-9]/g, '');
+        fileNameParts = [tplName, firstName, SITE_NAME];
+      } else {
+        fileNameParts = [tplName, SITE_URL.replace(/https?:\/\//, '').replace(/[^a-zA-Z0-9.]/g, ''), SITE_NAME];
+      }
+
+      const fileName = fileNameParts.filter(Boolean).join('_') + '.png';
+
       const link = document.createElement('a');
-      link.download = `${template?.name || 'design'}-${slug || 'dp'}.png`;
+      link.download = fileName;
       link.href = uri;
       document.body.appendChild(link);
       link.click();
@@ -367,7 +498,7 @@ export const Generator: React.FC = () => {
       console.error(e);
       toast.error('Could not generate image.');
     }
-  }, [slug, template]);
+  }, [slug, template, elements]);
 
   const handleShare = useCallback(async () => {
     const shareUrl = window.location.href;

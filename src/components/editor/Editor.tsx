@@ -12,9 +12,9 @@ import {
   ImagePlus, Layers, ZoomIn, ZoomOut, 
   Grid, Eye, Check, Maximize, 
   Trash2, ChevronLeft, MousePointer2, PanelRight,
-  Upload, Sparkles, Loader2
+  Upload, Sparkles, Loader2, Pencil, Link2
 } from 'lucide-react';
-import { publishTemplate } from '@/lib/templates';
+import { publishTemplate, updateTemplateSlug } from '@/lib/templates';
 import { compressImage } from '@/lib/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -37,6 +37,13 @@ export const Editor: React.FC = () => {
 
   const [isPublishing, setIsPublishing] = useState(false);
   const [publishedUrl, setPublishedUrl] = useState<string | null>(null);
+  const [publishedSlug, setPublishedSlug] = useState<string | null>(null);
+  const [originalSlug, setOriginalSlug] = useState<string | null>(null);
+  const [customSlug, setCustomSlug] = useState('');
+  const [savedCustomSlug, setSavedCustomSlug] = useState<string | null>(null);
+  const [isEditingSlug, setIsEditingSlug] = useState(false);
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [isEditingName, setIsEditingName] = useState(false);
   const [activeTab, setActiveTab] = useState<SidebarTab>('properties');
   const [showGrid, setShowGrid] = useState(true);
   const [isPreview, setIsPreview] = useState(false);
@@ -65,6 +72,7 @@ export const Editor: React.FC = () => {
     backgroundColor, setBackgroundColor, backgroundImage, setBackgroundImage,
     addElement, updateElement, deleteElement, duplicateElement,
     moveElement, getSelectedElement, clearSelection, exportTemplate,
+    templateName, setTemplateName,
   } = useCanvas();
 
   const selectedElement = getSelectedElement();
@@ -172,6 +180,10 @@ export const Editor: React.FC = () => {
     try {
       const result = await publishTemplate(exportTemplate(), userId);
       if (result) {
+        setOriginalSlug(result.slug);
+        setPublishedSlug(result.slug);
+        setCustomSlug('');
+        setSavedCustomSlug(null);
         setPublishedUrl(`${window.location.origin}/dp/${result.slug}`);
         toast.success('Published successfully!');
       } else {
@@ -216,8 +228,28 @@ export const Editor: React.FC = () => {
           <Link to="/" className="shrink-0 p-1.5 -ml-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">
             <ChevronLeft size={18} className="text-[#86868b]" />
           </Link>
-          <div className="min-w-0 hidden sm:block">
-            <span className="text-[12px] font-semibold leading-tight truncate block">Untitled Campaign</span>
+          <div className="min-w-0 hidden sm:flex items-center gap-1.5 group">
+            {isEditingName ? (
+              <input
+                autoFocus
+                value={templateName}
+                onChange={(e) => setTemplateName(e.target.value)}
+                onBlur={() => setIsEditingName(false)}
+                onKeyDown={(e) => { if (e.key === 'Enter') setIsEditingName(false); }}
+                className="text-[12px] font-semibold leading-tight bg-transparent border-b border-blue-500 outline-none px-0.5 py-0 max-w-[160px]"
+                maxLength={60}
+              />
+            ) : (
+              <button
+                onClick={() => setIsEditingName(true)}
+                className="text-[12px] font-semibold leading-tight truncate block max-w-[160px] hover:text-blue-500 transition-colors text-left"
+              >
+                {templateName}
+              </button>
+            )}
+            {!isEditingName && (
+              <Pencil size={11} className="text-[#86868b]/0 group-hover:text-[#86868b]/60 transition-colors shrink-0 cursor-pointer" onClick={() => setIsEditingName(true)} />
+            )}
           </div>
         </div>
 
@@ -324,7 +356,7 @@ export const Editor: React.FC = () => {
                 className="pointer-events-auto group flex flex-col items-center gap-5 p-10 md:p-14 rounded-3xl bg-white/70 dark:bg-[#000000] backdrop-blur-2xl border-2 border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#0071e3]/40 dark:hover:border-[#0071e3]/40 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.98] max-w-[90vw]"
               >
                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#86868b]/15 flex items-center justify-center group-hover:bg-[#86868b]/25 transition-colors">
-                  <Upload size={28} className="text-[#ffffff]" />
+                  <Upload size={28} className="text-[#000000] dark:text-[#ffffff]" />
                 </div>
                 <div className="text-center space-y-1.5">
                   <p className="text-[15px] md:text-[17px] font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">Upload your frame</p>
@@ -598,34 +630,204 @@ export const Editor: React.FC = () => {
         {publishedUrl && (
           <motion.div 
             initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex items-center justify-center bg-black/60 backdrop-blur-md p-4" 
-            onClick={() => setPublishedUrl(null)}
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xl p-0 sm:p-4" 
+            onClick={() => { setPublishedUrl(null); setIsEditingSlug(false); }}
           >
             <motion.div 
-              initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-white dark:bg-[#1c1c1e] p-8 md:p-10 rounded-3xl shadow-2xl max-w-sm w-full border border-black/5 dark:border-white/10"
+              initial={{ y: 60, opacity: 0 }} 
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 400 }}
+              className="bg-white dark:bg-[#1c1c1e] w-full sm:max-w-[440px] sm:rounded-[28px] rounded-t-[28px] shadow-2xl border-t sm:border border-black/5 dark:border-white/[0.08] overflow-hidden"
               onClick={e => e.stopPropagation()}
             >
-              <div className="text-center space-y-5">
-                <div className="w-16 h-16 bg-green-500 text-white rounded-2xl flex items-center justify-center mx-auto shadow-lg shadow-green-500/30">
-                  <Check size={32} strokeWidth={3} />
-                </div>
-                <div>
-                  <h2 className="text-xl font-bold tracking-tight">Published!</h2>
-                  <p className="text-[#86868b] text-[13px] mt-1.5">Share this link with your community.</p>
-                </div>
-                <div className="flex bg-black/[0.03] dark:bg-white/[0.05] p-1.5 rounded-xl items-center gap-2 border border-black/[0.05] dark:border-white/[0.05]">
-                  <input value={publishedUrl} readOnly className="bg-transparent flex-1 px-3 text-[12px] font-medium outline-none truncate" />
-                  <Button 
-                    onClick={() => { navigator.clipboard.writeText(publishedUrl!); toast.success("Copied!"); }} 
-                    className="bg-[#0071e3] hover:bg-[#0077ed] rounded-xl h-9 px-4 text-[11px] font-bold text-white shrink-0"
+              {/* Success banner */}
+              <div className="relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-emerald-500/10 via-green-400/5 to-transparent dark:from-emerald-500/[0.06] dark:via-green-400/[0.03]" />
+                <div className="relative px-7 pt-8 pb-6 text-center">
+                  <motion.div
+                    initial={{ scale: 0, rotate: -20 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', damping: 14, stiffness: 200, delay: 0.15 }}
+                    className="w-[52px] h-[52px] bg-gradient-to-br from-emerald-500 to-green-600 text-white rounded-[16px] flex items-center justify-center mx-auto shadow-xl shadow-green-500/25 dark:shadow-green-500/15"
                   >
-                    Copy
-                  </Button>
+                    <Check size={26} strokeWidth={3} />
+                  </motion.div>
+                  <h2 className="text-[20px] font-bold tracking-tight mt-4">You're Live!</h2>
+                  <p className="text-[13px] text-[#86868b] mt-1 leading-relaxed">Your template is published and ready to share</p>
                 </div>
-                <Button variant="ghost" className="w-full text-[#86868b] text-[12px] font-semibold" onClick={() => setPublishedUrl(null)}>Done</Button>
               </div>
+
+              <div className="px-7 pb-7 space-y-4">
+                {/* Original URL — always visible */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#86868b] flex items-center gap-1.5">
+                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                    Original Link
+                  </label>
+                  <div className="flex bg-[#f5f5f7] dark:bg-white/[0.04] rounded-2xl items-center border border-black/[0.04] dark:border-white/[0.06] overflow-hidden transition-all focus-within:border-[#0071e3]/30 focus-within:ring-2 focus-within:ring-[#0071e3]/10">
+                    <input 
+                      value={`${window.location.origin}/dp/${originalSlug}`} 
+                      readOnly 
+                      className="bg-transparent flex-1 pl-4 pr-2 py-3 text-[13px] font-medium outline-none truncate text-[#1d1d1f] dark:text-[#f5f5f7]" 
+                      onFocus={(e) => e.target.select()}
+                    />
+                    <Button 
+                      onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/dp/${originalSlug}`); toast.success("Link copied!"); }} 
+                      className="bg-[#0071e3] hover:bg-[#0077ed] rounded-xl h-9 px-4 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm shadow-blue-500/20 active:scale-95 transition-all"
+                    >
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+
+                {/* Custom URL — shown after saving */}
+                <AnimatePresence>
+                  {savedCustomSlug && (
+                    <motion.div
+                      initial={{ height: 0, opacity: 0 }}
+                      animate={{ height: 'auto', opacity: 1 }}
+                      exit={{ height: 0, opacity: 0 }}
+                      transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                      className="space-y-1.5 overflow-hidden"
+                    >
+                      <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#0071e3] flex items-center gap-1.5">
+                        <Link2 size={10} />
+                        Custom Link
+                      </label>
+                      <div className="flex bg-[#0071e3]/[0.03] dark:bg-[#0071e3]/[0.06] rounded-2xl items-center border border-[#0071e3]/15 dark:border-[#0071e3]/20 overflow-hidden transition-all focus-within:border-[#0071e3]/30 focus-within:ring-2 focus-within:ring-[#0071e3]/10">
+                        <input 
+                          value={`${window.location.origin}/dp/${savedCustomSlug}`} 
+                          readOnly 
+                          className="bg-transparent flex-1 pl-4 pr-2 py-3 text-[13px] font-medium outline-none truncate text-[#0071e3] dark:text-[#2997ff]" 
+                          onFocus={(e) => e.target.select()}
+                        />
+                        <Button 
+                          onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/dp/${savedCustomSlug}`); toast.success("Custom link copied!"); }} 
+                          className="bg-[#0071e3] hover:bg-[#0077ed] rounded-xl h-9 px-4 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm shadow-blue-500/20 active:scale-95 transition-all"
+                        >
+                          Copy
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {/* Divider */}
+                <div className="flex items-center gap-3">
+                  <div className="flex-1 h-px bg-black/[0.05] dark:bg-white/[0.05]" />
+                  <span className="text-[10px] font-semibold text-[#86868b]/60 uppercase tracking-wider">{savedCustomSlug ? 'edit' : 'add'}</span>
+                  <div className="flex-1 h-px bg-black/[0.05] dark:bg-white/[0.05]" />
+                </div>
+
+                {/* Custom slug editor */}
+                <div className="space-y-3">
+                  <button 
+                    onClick={() => setIsEditingSlug(!isEditingSlug)}
+                    className={cn(
+                      "w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all active:scale-[0.98]",
+                      isEditingSlug 
+                        ? "border-[#0071e3]/20 bg-[#0071e3]/[0.03] dark:bg-[#0071e3]/[0.06]" 
+                        : "border-black/[0.04] dark:border-white/[0.06] bg-[#f5f5f7] dark:bg-white/[0.04] hover:border-[#0071e3]/20"
+                    )}
+                  >
+                    <div className={cn(
+                      "w-9 h-9 rounded-xl flex items-center justify-center transition-colors",
+                      isEditingSlug ? "bg-[#0071e3]/10 text-[#0071e3]" : "bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b]"
+                    )}>
+                      <Link2 size={16} />
+                    </div>
+                    <div className="text-left flex-1">
+                      <p className={cn("text-[13px] font-semibold", isEditingSlug ? "text-[#0071e3]" : "")}>
+                        {savedCustomSlug ? 'Change Custom URL' : 'Customize URL'}
+                      </p>
+                      <p className="text-[11px] text-[#86868b]">
+                        {savedCustomSlug ? 'Update your branded link' : 'Make it memorable & branded'}
+                      </p>
+                    </div>
+                    <Pencil size={14} className={cn("transition-colors", isEditingSlug ? "text-[#0071e3]" : "text-[#86868b]/40")} />
+                  </button>
+                  
+                  <AnimatePresence>
+                    {isEditingSlug && (
+                      <motion.div
+                        initial={{ height: 0, opacity: 0 }}
+                        animate={{ height: 'auto', opacity: 1 }}
+                        exit={{ height: 0, opacity: 0 }}
+                        transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
+                        className="overflow-hidden"
+                      >
+                        <div className="space-y-3 pt-1">
+                          <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f5f5f7] dark:bg-white/[0.04] overflow-hidden transition-all focus-within:border-[#0071e3]/30 focus-within:ring-2 focus-within:ring-[#0071e3]/10">
+                            <div className="flex items-center px-4 pt-2">
+                              <span className="text-[10px] font-semibold text-[#86868b] select-none uppercase tracking-wider">URL Preview</span>
+                            </div>
+                            <div className="flex items-center px-4 pb-3 pt-1">
+                              <span className="text-[12px] text-[#86868b] shrink-0 select-none font-medium">/dp/</span>
+                              <input
+                                autoFocus
+                                value={customSlug}
+                                onChange={(e) => setCustomSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30))}
+                                className="bg-transparent flex-1 text-[14px] font-bold outline-none min-w-0 text-[#1d1d1f] dark:text-[#f5f5f7]"
+                                placeholder="my-event-2026"
+                                maxLength={30}
+                              />
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between gap-3">
+                            <p className="text-[10px] text-[#86868b] leading-relaxed">
+                              {customSlug.length < 3 
+                                ? <span className="text-amber-500">Min 3 characters</span> 
+                                : customSlug === savedCustomSlug 
+                                  ? <span>Current custom URL</span>
+                                  : <span className="text-emerald-500">{customSlug.length}/30 — looks good!</span>
+                              }
+                            </p>
+                            <Button
+                              disabled={slugSaving || customSlug === savedCustomSlug || customSlug.length < 3}
+                              onClick={async () => {
+                                if (!user || !originalSlug) return;
+                                setSlugSaving(true);
+                                const result = await updateTemplateSlug(originalSlug, customSlug, user.id);
+                                if (result) {
+                                  setSavedCustomSlug(result.custom_slug);
+                                  toast.success('Custom URL saved!');
+                                  setIsEditingSlug(false);
+                                } else {
+                                  toast.error('That URL is taken. Try another.');
+                                }
+                                setSlugSaving(false);
+                              }}
+                              className="h-9 bg-[#0071e3] hover:bg-[#0077ed] rounded-xl px-5 text-[12px] font-bold text-white shadow-sm shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-40"
+                            >
+                              {slugSaving ? <Loader2 size={14} className="animate-spin" /> : savedCustomSlug ? 'Update' : 'Save'}
+                            </Button>
+                          </div>
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+
+                {/* Both links info */}
+                {savedCustomSlug && (
+                  <p className="text-[10px] text-[#86868b] text-center leading-relaxed">
+                    Both links are active — share either one
+                  </p>
+                )}
+
+                {/* Done button */}
+                <button 
+                  onClick={() => { setPublishedUrl(null); setIsEditingSlug(false); }}
+                  className="w-full py-3 text-[13px] font-semibold text-[#86868b] hover:text-[#ffffff] dark:hover:text-[#f5f5f7] transition-colors active:scale-[0.98] rounded-2xl hover:bg-black dark:hover:bg-white"
+                >
+                  Done
+                </button>
+              </div>
+
+              {/* Safe area padding for mobile */}
+              <div className="safe-bottom" />
             </motion.div>
           </motion.div>
         )}
