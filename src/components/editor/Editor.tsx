@@ -2,17 +2,20 @@ import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react'
 import Konva from 'konva';
 import { Link } from 'react-router-dom';
 import { useCanvas } from '@/hooks/useCanvas';
+import { useAuth } from '@/hooks/useAuth';
 import { CanvasStage } from './CanvasStage';
 import { FloatingToolbar } from './FloatingToolbar';
 import { PropertiesPanel } from './PropertiesPanel';
+import { AuthModal } from '@/components/AuthModal';
 import { toast } from 'sonner';
 import { 
   ImagePlus, Layers, ZoomIn, ZoomOut, 
   Grid, Eye, Check, Maximize, 
   Trash2, ChevronLeft, MousePointer2, PanelRight,
-  Upload, Sparkles
+  Upload, Sparkles, Loader2
 } from 'lucide-react';
 import { publishTemplate } from '@/lib/templates';
+import { compressImage } from '@/lib/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -39,6 +42,10 @@ export const Editor: React.FC = () => {
   const [isPreview, setIsPreview] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+
+  const { user } = useAuth();
 
   // Detect mobile
   useEffect(() => {
@@ -159,20 +166,20 @@ export const Editor: React.FC = () => {
 
   const handlePublish = useCallback(async () => {
     if (elements.length === 0) return toast.error('Canvas is empty. Add elements first.');
+    if (!user) {
+      setShowAuthModal(true);
+      return;
+    }
     setIsPublishing(true);
     try {
-      const result = await publishTemplate({
-        id: crypto.randomUUID(),
-        slug: `dp-${Math.random().toString(36).substring(7)}`,
-        ...exportTemplate()
-      });
+      const result = await publishTemplate(exportTemplate(), user.id);
       if (result) {
         setPublishedUrl(`${window.location.origin}/dp/${result.slug}`);
         toast.success('Published successfully!');
       }
     } catch { toast.error('Publish failed. Please try again.'); } 
     finally { setIsPublishing(false); }
-  }, [elements, exportTemplate]);
+  }, [elements, exportTemplate, user]);
 
   // Open sidebar on selection (mobile)
   useEffect(() => {
@@ -510,22 +517,62 @@ export const Editor: React.FC = () => {
         </AnimatePresence>
       </div>
 
-      <input ref={bgImageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => {
+      <input ref={bgImageInputRef} type="file" accept="image/*" className="hidden" onChange={async (e) => {
         const file = e.target.files?.[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onload = (ev) => {
-            const img = new Image();
-            img.onload = () => {
-                setCanvasSize({ width: img.width, height: img.height });
-                setBackgroundImage(ev.target?.result as string);
-                setTimeout(fitToScreen, 100);
-            };
-            img.src = ev.target?.result as string;
-          };
-          reader.readAsDataURL(file);
+        if (!file) return;
+        try {
+          setUploadProgress(0);
+          const { dataUrl, width, height } = await compressImage(file, {
+            maxWidth: 2048,
+            maxHeight: 2048,
+            quality: 0.85,
+            onProgress: (pct) => setUploadProgress(pct),
+          });
+          setCanvasSize({ width, height });
+          setBackgroundImage(dataUrl);
+          setTimeout(fitToScreen, 100);
+        } catch (err) {
+          console.error('Image processing failed:', err);
+          toast.error('Failed to process image. Try a smaller file.');
+        } finally {
+          setUploadProgress(null);
         }
       }} />
+
+      {/* UPLOAD PROGRESS OVERLAY */}
+      <AnimatePresence>
+        {uploadProgress !== null && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[250] flex items-center justify-center bg-black/50 backdrop-blur-sm"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white dark:bg-[#1c1c1e] rounded-3xl p-8 max-w-xs w-full shadow-2xl border border-black/5 dark:border-white/10 text-center space-y-5"
+            >
+              <div className="w-14 h-14 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center mx-auto">
+                <Loader2 size={28} className="text-[#0071e3] animate-spin" />
+              </div>
+              <div>
+                <h3 className="text-base font-bold tracking-tight">Processing Image</h3>
+                <p className="text-[#86868b] text-[12px] mt-1">Optimizing for best quality…</p>
+              </div>
+              <div className="space-y-2">
+                <div className="w-full h-2 bg-black/[0.06] dark:bg-white/[0.06] rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-[#0071e3] rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${uploadProgress}%` }}
+                    transition={{ duration: 0.3, ease: 'easeOut' }}
+                  />
+                </div>
+                <p className="text-[11px] font-semibold text-[#86868b]">{Math.round(uploadProgress)}%</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* PUBLISH SUCCESS MODAL */}
       <AnimatePresence>
@@ -564,6 +611,13 @@ export const Editor: React.FC = () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* AUTH MODAL */}
+      <AuthModal
+        open={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        message="Sign in to publish your template"
+      />
     </div>
   );
 };

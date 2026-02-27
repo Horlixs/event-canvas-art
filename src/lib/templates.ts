@@ -11,9 +11,12 @@ const generateSlug = () => {
   return slug;
 };
 
-export const publishTemplate = async (template: TemplateData): Promise<{ slug: string } | null> => {
+export const publishTemplate = async (
+  template: Omit<TemplateData, 'id' | 'slug'> & { id?: string; slug?: string },
+  userId: string
+): Promise<{ slug: string } | null> => {
   const slug = generateSlug();
-  
+
   const { error } = await supabase
     .from('templates')
     .insert({
@@ -24,7 +27,8 @@ export const publishTemplate = async (template: TemplateData): Promise<{ slug: s
       background_image: template.backgroundImage || null,
       canvas_width: template.width,
       canvas_height: template.height,
-    });
+      user_id: userId,
+    } as any);
 
   if (error) {
     console.error('Error publishing template:', error);
