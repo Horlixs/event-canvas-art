@@ -73,11 +73,12 @@ export const useCanvas = () => {
         newElement = {
           ...baseProps,
           type: 'text',
-          text: 'Your Text Here', // use `text` field (matches Editor expectations below)
+          text: 'Your Text Here',
           fontSize: 48,
           fontFamily: 'Inter',
           fontStyle: 'normal',
           fontWeight: 400,
+          textAlign: 'center',
           fill: '#1f2937',
           stroke: '',
           strokeWidth: 0,

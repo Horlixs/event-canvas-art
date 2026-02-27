@@ -1,5 +1,5 @@
 import React, { useRef, useCallback, useState, useEffect, useMemo, useLayoutEffect } from 'react';
-import { AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { Stage, Layer, Rect, Circle, Line, Text, Image as KonvaImage, Group } from 'react-konva';
 import { 
   Download, 
@@ -7,7 +7,13 @@ import {
   Loader2, 
   AlertCircle, 
   ChevronLeft, 
-  Type
+  Type,
+  Share2,
+  Check,
+  Camera,
+  ChevronUp,
+  Sparkles,
+  Link2
 } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { CanvasElement, TemplateData, TextElement } from '@/types/editor';
@@ -48,161 +54,173 @@ const URLImageShape: React.FC<{
 }> = ({ element, src, children }) => {
   const [image] = useImage(src || '', 'anonymous');
 
-  const fillProps = useMemo(() => {
-    // 1. Safely get fallback fill
-    const fallbackFill = 'fill' in element ? element.fill : undefined;
+  const patternFill = useMemo(() => {
+    if (!image || !src) return null;
 
-    if (!image || !src) return { fill: fallbackFill };
-
-    // 2. Safely calculate dimensions based on shape type
-    let shapeWidth = 0;
-    let shapeHeight = 0;
-
+    let sw = 0, sh = 0;
     if (element.type === 'circle' || element.type === 'polygon') {
-        shapeWidth = element.radius * 2;
-        shapeHeight = element.radius * 2;
-    } else if (element.type === 'rect' || element.type === 'image') {
-        shapeWidth = element.width;
-        shapeHeight = element.height;
+      sw = element.radius * 2;
+      sh = element.radius * 2;
+    } else if ('width' in element && 'height' in element) {
+      sw = element.width;
+      sh = element.height;
     }
+    if (sw === 0 || sh === 0) return null;
 
-    const imgWidth = image.width;
-    const imgHeight = image.height;
-
-    // Calculate scale to cover the shape area (Object-fit: cover)
-    const scale = Math.max(shapeWidth / imgWidth, shapeHeight / imgHeight);
-
-    // Center the pattern
-    const offsetX = (imgWidth * scale - shapeWidth) / 2;
-    const offsetY = (imgHeight * scale - shapeHeight) / 2;
+    const scale = Math.max(sw / image.width, sh / image.height);
+    const ox = (image.width * scale - sw) / 2;
+    const oy = (image.height * scale - sh) / 2;
 
     return {
       fillPatternImage: image,
       fillPatternScaleX: scale,
       fillPatternScaleY: scale,
-      fillPatternOffsetX: offsetX / scale,
-      fillPatternOffsetY: offsetY / scale,
+      fillPatternOffsetX: ox / scale,
+      fillPatternOffsetY: oy / scale,
     };
   }, [image, src, element]);
 
-  // Extract props common to all shapes
-  const { id, x, y, rotation, opacity, isPlaceholder } = element;
-  
-  const commonProps = {
-    id, x, y, rotation, opacity,
-    listening: isPlaceholder,
-    ...fillProps
-  };
+  const shapeFill: any = patternFill || { fill: 'fill' in element ? (element as any).fill : undefined };
 
-  if (element.type === 'rect') {
-    return (
-      <Group>
-        {children}
+  return (
+    <Group x={element.x} y={element.y} rotation={element.rotation} opacity={element.opacity ?? 1}>
+      {children}
+      {element.type === 'rect' && (
         <Rect
-          {...commonProps}
           width={element.width}
           height={element.height}
+          offsetX={element.width / 2}
+          offsetY={element.height / 2}
           cornerRadius={element.cornerRadius}
-          x={element.x - element.width / 2}
-          y={element.y - element.height / 2}
+          listening={element.isPlaceholder}
+          {...shapeFill}
         />
-      </Group>
-    );
-  }
-
-  if (element.type === 'circle') {
-    return (
-      <Group>
-        {children}
-        <Circle {...commonProps} radius={element.radius} />
-      </Group>
-    );
-  }
-
-  if (element.type === 'polygon') {
-    const points = Array.from({ length: element.sides || 3 }, (_, i) => {
-      const angle = (Math.PI * 2 * i) / (element.sides || 3) - Math.PI / 2;
-      return [
-        element.x + element.radius * Math.cos(angle),
-        element.y + element.radius * Math.sin(angle),
-      ];
-    }).flat();
-
-    return (
-      <Group>
-        {children}
-        <Line 
-          points={points} 
-          closed 
-          {...commonProps}
-          fill={src ? undefined : element.fill} 
+      )}
+      {element.type === 'circle' && (
+        <Circle
+          radius={element.radius}
+          listening={element.isPlaceholder}
+          {...shapeFill}
         />
-      </Group>
-    );
-  }
-
-  if (element.type === 'image') {
-      return (
-        <Group>
-             <Rect 
-                {...commonProps}
-                width={element.width}
-                height={element.height}
-                x={element.x - element.width / 2}
-                y={element.y - element.height / 2}
-             />
-        </Group>
-      )
-  }
-
-  return null;
+      )}
+      {element.type === 'polygon' && (() => {
+        const sides = (element as any).sides || 6;
+        const r = element.radius;
+        const points: number[] = [];
+        for (let i = 0; i < sides; i++) {
+          const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
+          points.push(r * Math.cos(angle), r * Math.sin(angle));
+        }
+        return <Line points={points} closed listening={element.isPlaceholder} {...shapeFill} />;
+      })()}
+      {element.type === 'image' && (
+        <Rect
+          width={element.width}
+          height={element.height}
+          offsetX={element.width / 2}
+          offsetY={element.height / 2}
+          listening={element.isPlaceholder}
+          {...shapeFill}
+        />
+      )}
+    </Group>
+  );
 };
 
 // --- HELPER: Main Shape Renderer ---
 const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({ element, userImage }) => {
   if (element.type === 'text') {
-    // TEXT RENDERING:
-    // We strictly follow the styles set by the creator (align, weight, font).
-    // The user can only change the content (element.text).
     return (
-      <Text
-        x={element.x}
-        y={element.y}
-        offsetX={element.width / 2}
-        offsetY={element.fontSize / 2}
-        
-        text={element.text}
-        width={element.width}
-        fontSize={element.fontSize}
-        fontFamily={element.fontFamily}
-        fontStyle={element.fontStyle}
-        fontWeight={element.fontWeight} // Respects creator's choice
-        fill={element.fill}
-        
-        align={element.textAlign || 'center'} // Respects creator's choice
-        verticalAlign="middle"
-      />
+      <Group x={element.x} y={element.y} rotation={element.rotation} opacity={element.opacity ?? 1}>
+        <Text
+          text={element.text}
+          width={element.width}
+          offsetX={element.width / 2}
+          fontSize={element.fontSize}
+          fontFamily={element.fontFamily}
+          fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
+          fill={element.fill}
+          align={element.textAlign || 'center'}
+        />
+      </Group>
     );
   }
 
-  // Render non-text shapes strokes
   const strokes = (
     <>
       {element.strokes?.map((s, i) => {
-        const commonProps = { key: i, fill: s.color, listening: false };
-        if(element.type === 'rect') {
-            return <Rect {...commonProps} x={element.x - element.width/2 - s.width/2} y={element.y - element.height/2 - s.width/2} width={element.width + s.width} height={element.height + s.width} />
+        if (element.type === 'rect') {
+          return (
+            <Rect
+              key={i}
+              width={element.width + s.width}
+              height={element.height + s.width}
+              offsetX={(element.width + s.width) / 2}
+              offsetY={(element.height + s.width) / 2}
+              fill={s.color}
+              listening={false}
+            />
+          );
         }
-        if(element.type === 'circle') {
-            return <Circle {...commonProps} x={element.x} y={element.y} radius={element.radius + s.width/2} />
-        }
+        if (element.type === 'circle') return <Circle key={i} radius={element.radius + s.width / 2} fill={s.color} listening={false} />;
         return null;
       })}
     </>
   );
 
-  return <URLImageShape element={element} src={userImage} children={strokes} />;
+  return <URLImageShape element={element} src={userImage}>{strokes}</URLImageShape>;
 };
+
+// --- LOADING SKELETON ---
+const GeneratorSkeleton: React.FC = () => (
+  <div className="h-[100dvh] flex flex-col bg-[#fafafa] dark:bg-[#000]">
+    <div className="h-12 border-b border-black/5 dark:border-white/5 flex items-center px-4 gap-3">
+      <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 animate-pulse" />
+      <div className="w-32 h-4 rounded-lg bg-black/5 dark:bg-white/5 animate-pulse" />
+    </div>
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative">
+          <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-500/20 to-purple-500/20 flex items-center justify-center">
+            <Loader2 className="w-7 h-7 animate-spin text-blue-500" />
+          </div>
+        </div>
+        <div className="text-center space-y-1">
+          <p className="text-sm font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">Loading your design</p>
+          <p className="text-xs text-[#86868b]">Setting things up...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+// --- ERROR STATE ---
+const GeneratorError: React.FC<{ error: string }> = ({ error }) => (
+  <div className="h-[100dvh] flex flex-col bg-[#fafafa] dark:bg-[#000]">
+    <div className="h-12 border-b border-black/5 dark:border-white/5 flex items-center px-4 gap-3">
+      <Link to="/" className="flex items-center gap-2 text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors">
+        <ChevronLeft size={18} />
+        <span className="text-sm font-medium">Back</span>
+      </Link>
+    </div>
+    <div className="flex-1 flex items-center justify-center p-8">
+      <div className="max-w-sm w-full text-center space-y-6">
+        <div className="w-20 h-20 rounded-3xl bg-red-500/10 flex items-center justify-center mx-auto">
+          <AlertCircle className="w-10 h-10 text-red-500" />
+        </div>
+        <div className="space-y-2">
+          <h1 className="text-xl font-bold text-[#1d1d1f] dark:text-[#f5f5f7]">Design Not Found</h1>
+          <p className="text-sm text-[#86868b] leading-relaxed">{error || 'This design may have been removed or the link is incorrect.'}</p>
+        </div>
+        <Link to="/">
+          <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-10 px-6 text-sm font-medium">
+            Go Home
+          </Button>
+        </Link>
+      </div>
+    </div>
+  </div>
+);
 
 export const Generator: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -219,6 +237,8 @@ export const Generator: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const [showControls, setShowControls] = useState(true);
+  const [isSharing, setIsSharing] = useState(false);
 
   // 1. Load Template
   useEffect(() => {
@@ -242,38 +262,32 @@ export const Generator: React.FC = () => {
     loadTemplate();
   }, [slug]);
 
-  // 2. Dynamic Google Font Loader
+  // 2. Dynamic Google Font Loader — loads exact weights used in template
   useEffect(() => {
     if (!elements.length) return;
-
-    const fontFamilies = new Set<string>();
+    const fontMap = new Map<string, Set<number>>();
     elements.forEach(el => {
       if (el.type === 'text' && el.fontFamily) {
-        fontFamilies.add(el.fontFamily);
+        if (!fontMap.has(el.fontFamily)) fontMap.set(el.fontFamily, new Set());
+        fontMap.get(el.fontFamily)!.add(Number(el.fontWeight) || 400);
       }
     });
-
-    if (fontFamilies.size === 0) {
-      setFontsLoaded(true);
-      return;
-    }
-
-    // Load fonts (Regular 400 and Bold 700)
-    const familiesQuery = Array.from(fontFamilies)
-      .map(font => `family=${font.replace(/\s+/g, '+')}:wght@400;700`)
+    if (fontMap.size === 0) { setFontsLoaded(true); return; }
+    const familiesQuery = Array.from(fontMap.entries())
+      .map(([font, weights]) => {
+        const ws = Array.from(weights).sort((a, b) => a - b).join(';');
+        return `family=${font.replace(/\s+/g, '+')}:wght@${ws}`;
+      })
       .join('&');
-    
     const link = document.createElement('link');
     link.href = `https://fonts.googleapis.com/css2?${familiesQuery}&display=swap`;
     link.rel = 'stylesheet';
-    
     link.onload = () => {
        document.fonts.ready.then(() => {
          setFontsLoaded(true); 
          if(stageRef.current) stageRef.current.batchDraw(); 
        });
     };
-    
     document.head.appendChild(link);
     return () => { document.head.removeChild(link); };
   }, [elements]);
@@ -284,12 +298,11 @@ export const Generator: React.FC = () => {
     const updateScale = () => {
         if (!containerRef.current) return;
         const { width, height } = containerRef.current.getBoundingClientRect();
-        const padding = 32; 
+        const padding = 48; 
         const scaleX = (width - padding) / template.width;
         const scaleY = (height - padding) / template.height;
         setScale(Math.max(0.1, Math.min(scaleX, scaleY, 1)));
     };
-    
     updateScale();
     const observer = new ResizeObserver(updateScale);
     observer.observe(containerRef.current);
@@ -298,6 +311,8 @@ export const Generator: React.FC = () => {
 
   const placeholderElements = useMemo(() => elements.filter((el) => el.isPlaceholder), [elements]);
   const textElements = useMemo(() => elements.filter((el) => el.type === 'text') as TextElement[], [elements]);
+  const totalSteps = placeholderElements.length + (textElements.length > 0 ? 1 : 0);
+  const completedSteps = placeholderElements.filter(el => !!userImages[el.id]).length + (textElements.length > 0 && textElements.some(el => el.text !== 'Your Text Here') ? 1 : 0);
 
   const getPlaceholderAspectRatio = useCallback((id: string) => {
     const el = elements.find((e) => e.id === id);
@@ -307,7 +322,6 @@ export const Generator: React.FC = () => {
     return 1;
   }, [elements]);
 
-  // Update text content only
   const handleTextChange = useCallback((id: string, newText: string) => {
     setElements((prev) => prev.map((el) => 
         (el.id === id && el.type === 'text') ? { ...el, text: newText } : el
@@ -343,46 +357,77 @@ export const Generator: React.FC = () => {
     try {
       const uri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
       const link = document.createElement('a');
-      link.download = `design-${slug || 'dp'}.png`;
+      link.download = `${template?.name || 'design'}-${slug || 'dp'}.png`;
       link.href = uri;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success('Image downloaded!');
+      toast.success('Image saved to your device!');
     } catch (e) {
       console.error(e);
       toast.error('Could not generate image.');
     }
-  }, [slug]);
+  }, [slug, template]);
 
-  if (isLoading) return <div className="h-screen flex items-center justify-center"><Loader2 className="animate-spin w-8 h-8" /></div>;
-  if (error || !template) return <div className="p-8 text-center text-red-500">Error: {error}</div>;
+  const handleShare = useCallback(async () => {
+    const shareUrl = window.location.href;
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: template?.name || 'Check out this design', url: shareUrl });
+      } catch { /* user cancelled */ }
+    } else {
+      await navigator.clipboard.writeText(shareUrl);
+      toast.success('Link copied to clipboard!');
+    }
+  }, [template]);
+
+  if (isLoading) return <GeneratorSkeleton />;
+  if (error || !template) return <GeneratorError error={error || 'Template not found'} />;
 
   const isDownloadDisabled = placeholderElements.length > 0 && placeholderElements.some((el) => !userImages[el.id]);
+  const hasControls = placeholderElements.length > 0 || textElements.length > 0;
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden bg-white dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+    <div className="flex flex-col h-[100dvh] overflow-hidden bg-[#fafafa] dark:bg-[#000] text-[#1d1d1f] dark:text-[#f5f5f7] font-sans tracking-tight transition-colors duration-300">
       
-      {/* Header */}
-      <header className="h-14 shrink-0 px-4 md:px-8 border-b border-slate-200 dark:border-white/10 flex items-center justify-between bg-white dark:bg-slate-950 z-20">
-        <div className="flex items-center gap-3">
-          <Button asChild variant="ghost" size="icon" className="h-8 w-8 rounded-full">
-            <Link to="/"><ChevronLeft className="w-4 h-4" /></Link>
-          </Button>
-          <h1 className="text-sm font-semibold">DP Generator</h1>
+      {/* HEADER - Compact & Functional */}
+      <header className="h-12 shrink-0 px-3 md:px-6 bg-white/80 dark:bg-[#111]/80 backdrop-blur-2xl border-b border-black/[0.05] dark:border-white/[0.05] flex items-center justify-between z-30 safe-top">
+        <div className="flex items-center gap-2 min-w-0">
+          <Link to="/" className="shrink-0 p-1.5 -ml-1.5 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95">
+            <ChevronLeft size={18} className="text-[#86868b]" />
+          </Link>
+          <div className="min-w-0">
+            <h1 className="text-[13px] font-semibold truncate">{template.name || 'Untitled Design'}</h1>
+          </div>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button 
+            onClick={handleShare}
+            className="h-8 px-3 rounded-full bg-black/[0.03] dark:bg-white/[0.05] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] text-[12px] font-medium flex items-center gap-1.5 transition-all active:scale-95"
+          >
+            <Share2 size={14} />
+            <span className="hidden sm:inline">Share</span>
+          </button>
         </div>
       </header>
 
-      {/* Main Layout */}
-      <div className="flex-1 flex flex-col lg:flex-row min-h-0">
+      {/* MAIN CONTENT */}
+      <div className="flex-1 flex flex-col lg:flex-row min-h-0 relative">
         
-        {/* Canvas Area */}
-        <main className="flex-1 relative bg-slate-100 dark:bg-black/40 overflow-hidden order-1 lg:order-2 h-[50vh] lg:h-auto border-b lg:border-b-0 lg:border-l border-slate-200 dark:border-slate-800">
-          <div className="absolute inset-0 opacity-20 pointer-events-none bg-[radial-gradient(circle_at_1px_1px,#888_1px,transparent_0)] [background-size:20px_20px]" />
+        {/* CANVAS AREA - Takes most space on mobile */}
+        <main 
+          className={cn(
+            "relative bg-[#efeff4] dark:bg-[#080808] overflow-hidden order-1 transition-all duration-300",
+            hasControls ? "flex-1 lg:flex-1" : "flex-1",
+          )}
+        >
+          {/* Subtle dot grid */}
+          <div className="absolute inset-0 pointer-events-none opacity-[0.03] dark:opacity-[0.06]" 
+               style={{ backgroundImage: `radial-gradient(#000 0.5px, transparent 0.5px)`, backgroundSize: '24px 24px' }} />
 
-          <div ref={containerRef} className="absolute inset-0 flex items-center justify-center p-4">
+          <div ref={containerRef} className="absolute inset-0 flex items-center justify-center p-4 md:p-8">
             <div 
-              className="relative shadow-xl ring-1 ring-black/10 bg-white"
+              className="relative"
               style={{
                 width: template.width,
                 height: template.height,
@@ -390,101 +435,154 @@ export const Generator: React.FC = () => {
                 transformOrigin: 'center center',
               }}
             >
-              <Stage ref={stageRef} width={template.width} height={template.height}>
-                <Layer>
-                  <Rect width={template.width} height={template.height} fill={template.backgroundColor} />
-                  {template.backgroundImage && (
-                    <BackgroundImage src={template.backgroundImage} width={template.width} height={template.height} />
-                  )}
-                  {fontsLoaded && elements.map((el) => (
-                    <RenderShape
-                      key={el.id}
-                      element={el}
-                      userImage={el.isPlaceholder ? userImages[el.id] : undefined}
-                    />
-                  ))}
-                </Layer>
-              </Stage>
+              {/* Canvas shadow */}
+              <div className="absolute -inset-1 rounded-lg bg-black/[0.08] dark:bg-black/30 blur-xl" />
+              <div className="relative bg-white overflow-hidden shadow-2xl" style={{ width: template.width, height: template.height }}>
+                <Stage ref={stageRef} width={template.width} height={template.height}>
+                  <Layer>
+                    <Rect width={template.width} height={template.height} fill={template.backgroundColor} />
+                    {template.backgroundImage && (
+                      <BackgroundImage src={template.backgroundImage} width={template.width} height={template.height} />
+                    )}
+                    {fontsLoaded && elements.map((el) => (
+                      <RenderShape key={el.id} element={el} userImage={el.isPlaceholder ? userImages[el.id] : undefined} />
+                    ))}
+                  </Layer>
+                </Stage>
+              </div>
             </div>
           </div>
         </main>
 
-        {/* Sidebar Controls */}
-        <aside className="w-full lg:w-[360px] bg-white dark:bg-slate-950 flex flex-col order-2 lg:order-1 h-[50vh] lg:h-auto z-10 shadow-xl lg:shadow-none">
-          <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-            
-            {/* Photos Section */}
-            {placeholderElements.length > 0 && (
-              <section className="space-y-3">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500">Photos</h3>
-                <div className="space-y-3">
-                  {placeholderElements.map((el) => {
-                    const filled = !!userImages[el.id];
-                    return (
-                      <button
-                        key={el.id}
-                        onClick={() => handleUploadClick(el.id)}
-                        className={cn(
-                          "w-full flex items-center gap-3 p-2 rounded-xl border-2 border-dashed transition-all",
-                          filled 
-                            ? "border-green-500/20 bg-green-50/50 dark:bg-green-900/10" 
-                            : "border-slate-200 dark:border-slate-700 hover:border-blue-500/50 hover:bg-slate-50 dark:hover:bg-slate-900"
-                        )}
-                      >
-                        <div className="w-12 h-12 rounded-lg bg-slate-100 dark:bg-slate-800 overflow-hidden flex items-center justify-center shrink-0">
-                          {filled ? (
-                            <img src={userImages[el.id]} alt="Preview" className="w-full h-full object-cover" />
-                          ) : (
-                            <ImageIcon className="w-5 h-5 text-slate-400" />
-                          )}
-                        </div>
-                        <div className="text-left">
-                          <p className="text-sm font-medium">{filled ? "Change Photo" : "Upload Photo"}</p>
-                          <p className="text-xs text-slate-500">Tap to select</p>
-                        </div>
-                      </button>
-                    );
-                  })}
+        {/* CONTROLS PANEL - Bottom sheet on mobile, sidebar on desktop */}
+        {hasControls && (
+          <>
+            {/* Mobile: Bottom Sheet */}
+            <div className="lg:hidden order-2 flex flex-col bg-white dark:bg-[#111] border-t border-black/[0.05] dark:border-white/[0.05] z-20 safe-bottom">
+              {/* Drag handle & toggle */}
+              <button 
+                onClick={() => setShowControls(!showControls)}
+                className="w-full flex flex-col items-center py-2 active:bg-black/[0.02] dark:active:bg-white/[0.02]"
+              >
+                <div className="w-8 h-1 rounded-full bg-black/10 dark:bg-white/10 mb-1" />
+                <div className="flex items-center gap-2 text-[11px] font-semibold text-[#86868b]">
+                  <span>Customize</span>
+                  {totalSteps > 0 && (
+                    <span className="px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 text-[10px] font-bold">
+                      {completedSteps}/{totalSteps}
+                    </span>
+                  )}
+                  <ChevronUp size={12} className={cn("transition-transform", !showControls && "rotate-180")} />
                 </div>
-              </section>
-            )}
+              </button>
 
-            {/* Text Section (Input only, no style controls) */}
-            {textElements.length > 0 && (
-              <section className="space-y-4">
-                 <h3 className="text-xs font-bold uppercase tracking-widest text-slate-500 flex items-center gap-2">
-                    <Type className="w-3 h-3" /> Text
-                 </h3>
-                 <div className="space-y-4">
-                    {textElements.map((el, i) => (
-                        <div key={el.id}>
-                            <label className="text-xs font-medium block mb-1.5 text-slate-600">Line {i + 1}</label>
-                            <input 
-                                value={el.text}
-                                onChange={(e) => handleTextChange(el.id, e.target.value)}
-                                className="w-full px-3 py-2 rounded-md border border-slate-200 dark:border-slate-700 bg-transparent text-sm"
-                                placeholder="Type here..."
-                            />
-                        </div>
-                    ))}
-                 </div>
-              </section>
-            )}
-          </div>
+              <AnimatePresence>
+                {showControls && (
+                  <motion.div
+                    initial={{ height: 0 }}
+                    animate={{ height: 'auto' }}
+                    exit={{ height: 0 }}
+                    transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
+                    className="overflow-hidden"
+                  >
+                    <div className="max-h-[40vh] overflow-y-auto overscroll-contain px-4 pb-3 space-y-4">
+                      <ControlContent 
+                        placeholderElements={placeholderElements}
+                        textElements={textElements}
+                        userImages={userImages}
+                        onUploadClick={handleUploadClick}
+                        onTextChange={handleTextChange}
+                      />
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
 
-          {/* Footer Actions */}
-          <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-white dark:bg-slate-950">
+              {/* Action buttons - always visible */}
+              <div className="px-4 pb-4 pt-2 flex gap-2">
+                <Button 
+                  onClick={handleDownload} 
+                  disabled={isDownloadDisabled}
+                  className="flex-1 h-12 bg-[#1d1d1f] dark:bg-[#f5f5f7] text-white dark:text-black rounded-2xl text-[14px] font-semibold transition-all active:scale-[0.98] disabled:opacity-40 shadow-lg"
+                >
+                  <Download className="w-[18px] h-[18px] mr-2" />
+                  Download
+                </Button>
+              </div>
+            </div>
+
+            {/* Desktop: Sidebar */}
+            <aside className="hidden lg:flex w-[380px] bg-white dark:bg-[#111] border-l border-black/[0.05] dark:border-white/[0.05] flex-col order-2 z-10">
+              {/* Sidebar header */}
+              <div className="h-14 px-6 flex items-center justify-between border-b border-black/[0.05] dark:border-white/[0.05]">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={14} className="text-blue-500" />
+                  <h2 className="text-[12px] font-bold uppercase tracking-[0.15em] text-[#86868b]">Customize</h2>
+                </div>
+                {totalSteps > 0 && (
+                  <div className="flex items-center gap-2">
+                    <div className="w-16 h-1.5 rounded-full bg-black/[0.05] dark:bg-white/[0.05] overflow-hidden">
+                      <div 
+                        className="h-full rounded-full bg-blue-500 transition-all duration-500" 
+                        style={{ width: `${totalSteps > 0 ? (completedSteps / totalSteps) * 100 : 0}%` }} 
+                      />
+                    </div>
+                    <span className="text-[10px] font-bold text-[#86868b] tabular-nums">{completedSteps}/{totalSteps}</span>
+                  </div>
+                )}
+              </div>
+
+              {/* Controls */}
+              <div className="flex-1 overflow-y-auto p-6 space-y-6">
+                <ControlContent 
+                  placeholderElements={placeholderElements}
+                  textElements={textElements}
+                  userImages={userImages}
+                  onUploadClick={handleUploadClick}
+                  onTextChange={handleTextChange}
+                />
+              </div>
+
+              {/* Desktop footer actions */}
+              <div className="p-5 border-t border-black/[0.05] dark:border-white/[0.05] space-y-2.5">
+                <Button 
+                  onClick={handleDownload} 
+                  disabled={isDownloadDisabled}
+                  className="w-full h-12 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-2xl text-[14px] font-semibold transition-all shadow-lg shadow-blue-500/20 disabled:opacity-40 disabled:shadow-none"
+                >
+                  <Download className="w-[18px] h-[18px] mr-2" />
+                  Download Image
+                </Button>
+                <button 
+                  onClick={handleShare}
+                  className="w-full h-10 rounded-xl text-[13px] font-medium text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] hover:bg-black/[0.03] dark:hover:bg-white/[0.03] transition-all flex items-center justify-center gap-2"
+                >
+                  <Link2 size={14} />
+                  Share this design
+                </button>
+              </div>
+            </aside>
+          </>
+        )}
+
+        {/* No controls state - just download/share FAB */}
+        {!hasControls && (
+          <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 safe-bottom">
             <Button 
-                onClick={handleDownload} 
-                disabled={isDownloadDisabled}
-                className="w-full rounded-full h-12 text-base font-medium shadow-lg shadow-blue-500/20"
+              onClick={handleDownload}
+              className="h-12 px-6 bg-[#1d1d1f] dark:bg-[#f5f5f7] text-white dark:text-black rounded-2xl text-[14px] font-semibold shadow-2xl active:scale-95 transition-all"
             >
-                <Download className="w-5 h-5 mr-2" />
-                Download Image
+              <Download className="w-[18px] h-[18px] mr-2" />
+              Download
             </Button>
+            <button 
+              onClick={handleShare}
+              className="h-12 w-12 rounded-2xl bg-white/90 dark:bg-[#1c1c1e]/90 backdrop-blur-xl shadow-2xl flex items-center justify-center active:scale-95 transition-all border border-black/5 dark:border-white/5"
+            >
+              <Share2 size={18} />
+            </button>
           </div>
-        </aside>
-
+        )}
       </div>
 
       <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handleImageUpload} />
@@ -501,3 +599,92 @@ export const Generator: React.FC = () => {
     </div>
   );
 };
+
+// --- Extracted shared control content ---
+const ControlContent: React.FC<{
+  placeholderElements: CanvasElement[];
+  textElements: TextElement[];
+  userImages: Record<string, string>;
+  onUploadClick: (id: string) => void;
+  onTextChange: (id: string, text: string) => void;
+}> = ({ placeholderElements, textElements, userImages, onUploadClick, onTextChange }) => (
+  <>
+    {/* Photo uploads */}
+    {placeholderElements.length > 0 && (
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Camera size={13} className="text-[#86868b]" />
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#86868b]">
+            {placeholderElements.length === 1 ? 'Your Photo' : 'Your Photos'}
+          </h3>
+        </div>
+        <div className="space-y-2">
+          {placeholderElements.map((el, index) => {
+            const filled = !!userImages[el.id];
+            return (
+              <button
+                key={el.id}
+                onClick={() => onUploadClick(el.id)}
+                className={cn(
+                  "w-full flex items-center gap-3 p-3 rounded-xl border transition-all active:scale-[0.98]",
+                  filled 
+                    ? "border-green-500/20 bg-green-500/[0.04]" 
+                    : "border-black/[0.06] dark:border-white/[0.06] hover:border-blue-500/30 hover:bg-blue-500/[0.02]"
+                )}
+              >
+                <div className={cn(
+                  "w-12 h-12 rounded-lg overflow-hidden flex items-center justify-center shrink-0 transition-colors",
+                  filled ? "bg-green-500/10" : "bg-black/[0.03] dark:bg-white/[0.05]"
+                )}>
+                  {filled ? (
+                    <img src={userImages[el.id]} alt="Preview" className="w-full h-full object-cover" />
+                  ) : (
+                    <ImageIcon className="w-5 h-5 text-[#86868b]" />
+                  )}
+                </div>
+                <div className="text-left flex-1 min-w-0">
+                  <p className="text-[13px] font-semibold">
+                    {filled ? 'Change Photo' : `Upload Photo${placeholderElements.length > 1 ? ` ${index + 1}` : ''}`}
+                  </p>
+                  <p className="text-[11px] text-[#86868b]">
+                    {filled ? 'Tap to replace' : 'Tap to select from gallery'}
+                  </p>
+                </div>
+                {filled && (
+                  <div className="w-6 h-6 rounded-full bg-green-500 flex items-center justify-center shrink-0">
+                    <Check size={14} className="text-white" strokeWidth={3} />
+                  </div>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      </section>
+    )}
+
+    {/* Text inputs */}
+    {textElements.length > 0 && (
+      <section className="space-y-3">
+        <div className="flex items-center gap-2">
+          <Type size={13} className="text-[#86868b]" />
+          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#86868b]">Text</h3>
+        </div>
+        <div className="space-y-2.5">
+          {textElements.map((el, i) => (
+            <div key={el.id}>
+              <label className="text-[11px] font-medium text-[#86868b] block mb-1.5">
+                {textElements.length === 1 ? 'Your Name' : `Line ${i + 1}`}
+              </label>
+              <input 
+                value={el.text}
+                onChange={(e) => onTextChange(el.id, e.target.value)}
+                className="w-full px-4 py-3 rounded-xl border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.03] text-[14px] font-medium outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500/30 transition-all placeholder:text-[#86868b]/50"
+                placeholder="Type here..."
+              />
+            </div>
+          ))}
+        </div>
+      </section>
+    )}
+  </>
+);

@@ -7,11 +7,12 @@ import { ShapeRenderer } from './ShapeRenderer';
 export const CanvasStage = ({
   elements, selectedId, onSelect, onUpdate, canvasSize,
   backgroundColor, backgroundImage, stageRef, userImage, isGeneratorMode = false,
+  zoom = 1,
 }) => {
   const transformerRef = useRef<Konva.Transformer>(null);
   const [bgImage] = useImage(backgroundImage || '', 'anonymous');
 
-  // Apple-Standard Precision Transformer
+  // Attach transformer to selected node
   useEffect(() => {
     if (transformerRef.current && stageRef.current) {
       const selectedNode = stageRef.current.findOne(`#${selectedId}`);
@@ -24,24 +25,20 @@ export const CanvasStage = ({
     }
   }, [selectedId, isGeneratorMode, elements]);
 
-  return (
-    <div className="flex-1 relative flex items-center justify-center bg-[#080808] overflow-hidden">
-      {/* Precision HUD Overlay */}
-      <div className="absolute top-6 left-6 z-50 pointer-events-none">
-        <span className="text-[10px] font-bold uppercase tracking-[0.25em] text-white/20">
-          Artboard Surface: {canvasSize.width}px × {canvasSize.height}px
-        </span>
-      </div>
+  // Scale-compensated anchor size: appears ~12px regardless of zoom
+  const anchorSize = Math.max(8, Math.round(12 / zoom));
 
+  return (
+    <div className="flex-1 relative flex items-center justify-center overflow-hidden">
       <Stage
         ref={stageRef}
         width={canvasSize.width}
         height={canvasSize.height}
-        className="shadow-[0_0_0_1px_rgba(255,255,255,0.05),0_50_100px_-20px_rgba(0,0,0,0.8)]"
         onClick={(e) => e.target === e.target.getStage() && onSelect(null)}
+        onTap={(e) => e.target === e.target.getStage() && onSelect(null)}
       >
         <Layer>
-          {/* Base Industrial Surface */}
+          {/* Base canvas surface */}
           <Rect
             width={canvasSize.width}
             height={canvasSize.height}
@@ -73,16 +70,23 @@ export const CanvasStage = ({
           {!isGeneratorMode && (
             <Transformer
               ref={transformerRef}
-              anchorSize={7}
-              anchorCornerRadius={10}
+              anchorSize={anchorSize}
+              anchorCornerRadius={3}
               anchorFill="#0071e3"
               anchorStroke="#ffffff"
-              anchorStrokeWidth={1.5}
+              anchorStrokeWidth={2}
               borderStroke="#0071e3"
-              borderStrokeWidth={1}
-              rotateAnchorOffset={25}
-              padding={4}
+              borderStrokeWidth={1.5}
+              borderDash={[4, 4]}
+              rotateAnchorOffset={30}
+              rotateAnchorCursor="grab"
+              padding={6}
               ignoreStroke={true}
+              enabledAnchors={['top-left', 'top-right', 'bottom-left', 'bottom-right', 'middle-left', 'middle-right', 'top-center', 'bottom-center']}
+              boundBoxFunc={(oldBox, newBox) => {
+                if (Math.abs(newBox.width) < 10 || Math.abs(newBox.height) < 10) return oldBox;
+                return newBox;
+              }}
             />
           )}
         </Layer>
