@@ -10,6 +10,7 @@ import Homepage from "@/pages/HomePage";
 import Index from "./pages/Index"; // The Creator/Editor
 import { GeneratorPage } from "@/pages/GeneratorPage"; // Import your Generator component
 import Dashboard from "@/pages/Dashboard";
+import TemplateDetail from "@/pages/TemplateDetail";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,9 @@ const App = () => {
             
             {/* View & Customize Published Designs */}
             <Route path="/dp/:slug" element={<GeneratorPage />} />
+
+            {/* Template Detail / Analytics Page */}
+            <Route path="/template/:slug" element={<TemplateDetail />} />
 
             <Route path="*" element={<NotFound />} />
           </Routes>

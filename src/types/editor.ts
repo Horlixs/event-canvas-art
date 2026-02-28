@@ -18,6 +18,8 @@ export interface BaseElement {
   rotation: number;
   opacity?: number;
   isPlaceholder: boolean;
+  stroke?: string;
+  strokeWidth?: number;
   strokes?: StrokeLayer[];
   
   // Image placeholder data
@@ -83,6 +85,8 @@ export interface TemplateData {
   height: number;
   backgroundColor: string;
   backgroundImage?: string;
+  registrationLink?: string;
+  eventName?: string;
   // 2. USE THE UNION TYPE HERE (Not HTMLCanvasElement)
   elements: CanvasElement[]; 
   thumbnail?: string;

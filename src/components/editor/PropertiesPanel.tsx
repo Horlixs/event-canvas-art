@@ -152,11 +152,17 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
     <div className="h-full flex flex-col">
       {/* Header */}
       <div className="flex items-center justify-between pb-4 mb-4 border-b border-black/[0.05] dark:border-white/[0.05]">
-        <div className="flex items-center gap-2">
-          <div className="w-1.5 h-1.5 rounded-full bg-blue-500" />
-          <h3 className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1d1d1f] dark:text-[#f5f5f7]">{element.type}</h3>
+        <div className="flex items-center gap-2 min-w-0 flex-1">
+          <div className="w-1.5 h-1.5 rounded-full bg-blue-500 shrink-0" />
+          <input
+            value={element.name || ''}
+            onChange={(e) => onUpdate({ name: e.target.value || undefined } as any)}
+            placeholder={element.type === 'text' ? (element as any).text || element.type : element.type}
+            className="text-[11px] font-bold uppercase tracking-[0.12em] text-[#1d1d1f] dark:text-[#f5f5f7] bg-transparent outline-none min-w-0 flex-1 placeholder:text-[#86868b]/50 border-b border-transparent focus:border-blue-500/40 transition-colors py-0.5"
+            maxLength={40}
+          />
         </div>
-        <button onClick={onClose} className="p-1 rounded-md text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95">
+        <button onClick={onClose} className="p-1 rounded-md text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 shrink-0 ml-2">
           <X size={14} />
         </button>
       </div>
@@ -223,6 +229,28 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
           {'cornerRadius' in element && (
             <ControlRow label="Corners"><CompactInput value={element.cornerRadius} onChange={(r) => onUpdate({ cornerRadius: Number(r) })} unit="px" /></ControlRow>
           )}
+
+          {/* Stroke */}
+          <div className="space-y-2 pt-2">
+            <h4 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#86868b]">Stroke</h4>
+            <ControlRow label="Color">
+              <div className="flex items-center gap-2 bg-black/[0.03] dark:bg-white/[0.04] px-2 py-1 rounded-lg border border-black/[0.04] dark:border-white/[0.04]">
+                <span className="text-[11px] font-mono uppercase text-[#86868b]">{element.stroke || 'none'}</span>
+                <div className="w-5 h-5 rounded-md overflow-hidden relative border border-black/10 dark:border-white/10">
+                  <input type="color" className="absolute -inset-2 w-[200%] h-[200%] cursor-pointer bg-transparent" value={element.stroke || '#000000'} onChange={e => onUpdate({ stroke: e.target.value })} />
+                </div>
+              </div>
+            </ControlRow>
+            <ControlRow label="Width"><CompactInput value={element.strokeWidth ?? 0} onChange={(w) => onUpdate({ strokeWidth: Number(w) })} unit="px" /></ControlRow>
+            {(element.strokeWidth > 0 && element.stroke) && (
+              <button
+                onClick={() => onUpdate({ stroke: '', strokeWidth: 0 })}
+                className="text-[10px] font-medium text-red-500 hover:text-red-600 transition-colors"
+              >
+                Remove stroke
+              </button>
+            )}
+          </div>
         </section>
 
         {/* Typography */}

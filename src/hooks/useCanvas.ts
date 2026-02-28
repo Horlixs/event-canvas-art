@@ -1,29 +1,105 @@
 // src/hooks/useCanvas.ts
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { CanvasElement, ShapeType } from '@/types/editor';
 
 const generateId = () => Math.random().toString(36).substring(2, 11);
 
-export const useCanvas = () => {
-  const [elements, setElements] = useState<CanvasElement[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [canvasSize, setCanvasSize] = useState({ width: 1080, height: 1080 }); // <-- expose setter
-  const [backgroundColor, setBackgroundColor] = useState('#ffffff');
-  const [backgroundImage, setBackgroundImage] = useState<string | null>(null);
-  const [templateName, setTemplateName] = useState('Untitled Template');
+const STORAGE_KEY = 'canvas_editor_state';
+const MAX_HISTORY = 50;
 
-  // --- Auto adjust canvas size when backgroundImage changes (optional) ---
+interface CanvasState {
+  elements: CanvasElement[];
+  canvasSize: { width: number; height: number };
+  backgroundColor: string;
+  backgroundImage: string | null;
+  templateName: string;
+  registrationLink: string;
+  eventName: string;
+}
+
+function loadSavedState(): CanvasState | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && Array.isArray(parsed.elements)) return parsed as CanvasState;
+  } catch { /* ignore corrupt data */ }
+  return null;
+}
+
+function saveState(state: CanvasState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  } catch { /* quota exceeded — silently fail */ }
+}
+
+export const useCanvas = () => {
+  const saved = useRef(loadSavedState());
+  const initial = saved.current;
+
+  const [elements, setElements] = useState<CanvasElement[]>(initial?.elements ?? []);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [canvasSize, setCanvasSize] = useState(initial?.canvasSize ?? { width: 1080, height: 1080 });
+  const [backgroundColor, setBackgroundColor] = useState(initial?.backgroundColor ?? '#ffffff');
+  const [backgroundImage, setBackgroundImage] = useState<string | null>(initial?.backgroundImage ?? null);
+  const [templateName, setTemplateName] = useState(initial?.templateName ?? 'Untitled Template');
+  const [registrationLink, setRegistrationLink] = useState(initial?.registrationLink ?? '');
+  const [eventName, setEventName] = useState(initial?.eventName ?? '');
+
+  // ── Undo / Redo ──────────────────────────────────────────────────────
+  const historyRef = useRef<CanvasElement[][]>([initial?.elements ?? []]);
+  const historyIndexRef = useRef(0);
+  const skipRecordRef = useRef(false);
+
+  // Record a snapshot whenever elements change (unless it's from undo/redo)
   useEffect(() => {
-    if (!backgroundImage) return;
-    // You can keep this effect or rely on caller to set size.
-    const img = new Image();
-    img.src = backgroundImage;
-    img.onload = () => {
-      // If the image is different size than canvas, update canvas size optionally:
-      // setCanvasSize({ width: img.width, height: img.height });
-      // I leave commented: Editor now explicitly calls setCanvasSize on upload.
-    };
-  }, [backgroundImage]);
+    if (skipRecordRef.current) {
+      skipRecordRef.current = false;
+      return;
+    }
+    const history = historyRef.current;
+    const idx = historyIndexRef.current;
+
+    // If we're not at the end, discard future states
+    if (idx < history.length - 1) {
+      historyRef.current = history.slice(0, idx + 1);
+    }
+
+    // Avoid duplicate snapshots
+    const last = historyRef.current[historyRef.current.length - 1];
+    if (last === elements) return;
+
+    historyRef.current.push(elements);
+    if (historyRef.current.length > MAX_HISTORY) historyRef.current.shift();
+    historyIndexRef.current = historyRef.current.length - 1;
+  }, [elements]);
+
+  const canUndo = historyIndexRef.current > 0;
+  const canRedo = historyIndexRef.current < historyRef.current.length - 1;
+
+  const undo = useCallback(() => {
+    if (historyIndexRef.current <= 0) return;
+    historyIndexRef.current -= 1;
+    skipRecordRef.current = true;
+    setElements(historyRef.current[historyIndexRef.current]);
+    setSelectedId(null);
+  }, []);
+
+  const redo = useCallback(() => {
+    if (historyIndexRef.current >= historyRef.current.length - 1) return;
+    historyIndexRef.current += 1;
+    skipRecordRef.current = true;
+    setElements(historyRef.current[historyIndexRef.current]);
+    setSelectedId(null);
+  }, []);
+
+  // ── Auto-save to localStorage (debounced) ────────────────────────────
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      saveState({ elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName });
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName]);
 
   const addElement = useCallback((type: ShapeType) => {
     const baseProps = {
@@ -146,7 +222,9 @@ export const useCanvas = () => {
     elements,
     backgroundColor,
     backgroundImage,
-  }), [elements, canvasSize, backgroundColor, backgroundImage, templateName]);
+    registrationLink: registrationLink || undefined,
+    eventName: eventName || undefined,
+  }), [elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName]);
 
   const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null }) => {
     setElements(template.elements);
@@ -155,18 +233,26 @@ export const useCanvas = () => {
     setSelectedId(null);
   }, []);
 
+  const clearSavedState = useCallback(() => {
+    localStorage.removeItem(STORAGE_KEY);
+  }, []);
+
   return {
     elements,
     selectedId,
     setSelectedId,
     canvasSize,
-    setCanvasSize, // <-- expose setter so Editor can change canvas size on BG upload
+    setCanvasSize,
     backgroundColor,
     setBackgroundColor,
     backgroundImage,
     setBackgroundImage,
     templateName,
     setTemplateName,
+    registrationLink,
+    setRegistrationLink,
+    eventName,
+    setEventName,
     addElement,
     updateElement,
     deleteElement,
@@ -176,5 +262,10 @@ export const useCanvas = () => {
     clearSelection,
     exportTemplate,
     importTemplate,
+    undo,
+    redo,
+    canUndo,
+    canRedo,
+    clearSavedState,
   };
 };

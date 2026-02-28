@@ -25,6 +25,8 @@ export const publishTemplate = async (
     background_image: template.backgroundImage || null,
     canvas_width: template.width,
     canvas_height: template.height,
+    registration_link: template.registrationLink || null,
+    event_name: (template as any).eventName || null,
   };
 
   // Try with user_id first; fall back without it if column doesn't exist yet
@@ -112,5 +114,95 @@ export const getTemplateBySlug = async (slug: string): Promise<TemplateData | nu
     elements: data.elements as unknown as CanvasElement[],
     backgroundColor: data.background_color,
     backgroundImage: data.background_image,
+    registrationLink: (data as any).registration_link || undefined,
+    eventName: (data as any).event_name || undefined,
   };
+};
+
+// --- Stats helpers ---
+
+export type StatName = 'views' | 'downloads' | 'shares';
+
+export const incrementTemplateStat = async (slug: string, stat: StatName) => {
+  try {
+    // Try RPC first (atomic increment)
+    const { error: rpcError } = await (supabase.rpc as any)('increment_template_stat', {
+      template_slug: slug,
+      stat_name: stat,
+      amount: 1,
+    });
+
+    if (rpcError) {
+      // Fallback: direct update (non-atomic but works without the RPC function)
+      const { data } = await supabase
+        .from('templates')
+        .select(stat)
+        .eq('slug', slug)
+        .maybeSingle() as any;
+
+      if (data) {
+        await supabase
+          .from('templates')
+          .update({ [stat]: (data[stat] || 0) + 1 } as any)
+          .eq('slug', slug);
+      }
+    }
+  } catch {
+    // Silently fail — stats are non-critical
+  }
+};
+
+export interface TemplateStats {
+  views: number;
+  downloads: number;
+  shares: number;
+}
+
+export const getTemplateStats = async (slug: string): Promise<TemplateStats> => {
+  try {
+    const { data } = await supabase
+      .from('templates')
+      .select('views, downloads, shares')
+      .eq('slug', slug)
+      .maybeSingle() as any;
+
+    return {
+      views: data?.views || 0,
+      downloads: data?.downloads || 0,
+      shares: data?.shares || 0,
+    };
+  } catch {
+    return { views: 0, downloads: 0, shares: 0 };
+  }
+};
+
+export const getUserTemplatesWithStats = async (userId: string) => {
+  const { data, error } = await supabase
+    .from('templates' as any)
+    .select('id, slug, custom_slug, name, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares, registration_link')
+    .eq('user_id', userId)
+    .order('updated_at', { ascending: false }) as any;
+
+  if (error || !data) return [];
+  return data;
+};
+
+export const getTemplateFullData = async (slug: string) => {
+  // Try slug first, then custom_slug
+  let { data, error } = await supabase
+    .from('templates')
+    .select('*')
+    .eq('slug', slug)
+    .maybeSingle() as any;
+
+  if (!data) {
+    ({ data, error } = await (supabase
+      .from('templates')
+      .select('*') as any)
+      .eq('custom_slug', slug)
+      .maybeSingle());
+  }
+
+  if (error || !data) return null;
+  return data;
 };

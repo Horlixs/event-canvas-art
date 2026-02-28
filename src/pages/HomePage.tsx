@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
 import { 
   ArrowRight, Users, Share2, UploadCloud, 
   ChevronRight, LayoutDashboard, Zap, 
-  Camera, Globe2, BarChart3, Shield, Moon, Sun 
+  Camera, Globe2, BarChart3, Shield, Moon, Sun,
+  User, LogOut, Settings
 } from "lucide-react";
 
 // --- REFINED ANIMATION ---
@@ -23,6 +25,9 @@ const SectionWrapper = ({ children, className = "" }) => (
 
 const Homepage = () => {
   const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
+  const { user, signOut } = useAuth();
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -31,9 +36,24 @@ const Homepage = () => {
     localStorage.setItem("theme", theme);
   }, [theme]);
 
+  // Close profile dropdown on outside click
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
+
   const toggleTheme = () => {
     setTheme(theme === "light" ? "dark" : "light");
   };
+
+  const userInitials = user?.user_metadata?.full_name
+    ? user.user_metadata.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
+    : user?.email?.[0]?.toUpperCase() || '?';
 
   return (
     <main className="min-h-screen bg-[#fafafa] dark:bg-[#000] text-[#1d1d1f] dark:text-[#f5f5f7] selection:bg-blue-500/30 font-sans tracking-tight transition-colors duration-500">
@@ -61,14 +81,85 @@ const Homepage = () => {
             <button onClick={toggleTheme} className="p-2 opacity-60 hover:opacity-100 transition-opacity">
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
-            <Link to="/login">
-                <Button variant="ghost" className="text-[13px] h-8 rounded-full">Sign In</Button>
-            </Link>
-            <Link to="/create">
-                <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] h-8 px-4 rounded-full transition-all">
-                Get Started
-                </Button>
-            </Link>
+
+            {user ? (
+              <div className="relative" ref={profileRef}>
+                <button
+                  onClick={() => setProfileOpen(!profileOpen)}
+                  className="flex items-center gap-2.5 h-9 pl-1 pr-3 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] transition-all active:scale-95"
+                >
+                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[11px] font-bold shadow-sm">
+                    {userInitials}
+                  </div>
+                  <span className="text-[13px] font-medium hidden sm:block max-w-[120px] truncate">
+                    {user.user_metadata?.full_name || user.email?.split('@')[0]}
+                  </span>
+                </button>
+
+                <AnimatePresence>
+                  {profileOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 6, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 6, scale: 0.95 }}
+                      transition={{ duration: 0.15, ease: [0.16, 1, 0.3, 1] }}
+                      className="absolute right-0 top-full mt-2 w-[240px] bg-white dark:bg-[#1c1c1e] rounded-2xl shadow-2xl border border-black/[0.06] dark:border-white/[0.08] overflow-hidden z-50"
+                    >
+                      <div className="p-4 border-b border-black/[0.05] dark:border-white/[0.05]">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[13px] font-bold shadow-sm">
+                            {userInitials}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-[13px] font-semibold truncate">
+                              {user.user_metadata?.full_name || 'User'}
+                            </p>
+                            <p className="text-[11px] text-[#86868b] truncate">{user.email}</p>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="p-1.5">
+                        <Link
+                          to="/dashboard"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+                        >
+                          <LayoutDashboard size={15} className="text-[#86868b]" />
+                          Dashboard
+                        </Link>
+                        <Link
+                          to="/create"
+                          onClick={() => setProfileOpen(false)}
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
+                        >
+                          <Zap size={15} className="text-[#86868b]" />
+                          Create New
+                        </Link>
+                        <div className="h-px bg-black/[0.05] dark:bg-white/[0.05] my-1 mx-2" />
+                        <button
+                          onClick={() => { signOut(); setProfileOpen(false); }}
+                          className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium hover:bg-red-500/[0.06] text-red-500 transition-colors w-full text-left"
+                        >
+                          <LogOut size={15} />
+                          Sign Out
+                        </button>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            ) : (
+              <>
+                <Link to="/login">
+                    <Button variant="ghost" className="text-[13px] h-8 rounded-full">Sign In</Button>
+                </Link>
+                <Link to="/create">
+                    <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] h-8 px-4 rounded-full transition-all">
+                    Get Started
+                    </Button>
+                </Link>
+              </>
+            )}
           </div>
         </div>
       </header>

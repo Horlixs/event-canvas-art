@@ -38,12 +38,14 @@ export const CanvasStage = ({
         onTap={(e) => e.target === e.target.getStage() && onSelect(null)}
       >
         <Layer>
-          {/* Base canvas surface */}
+          {/* Base canvas surface — click to deselect */}
           <Rect
             width={canvasSize.width}
             height={canvasSize.height}
             fill={backgroundColor || '#000000'}
             perfectDrawEnabled={false}
+            onClick={() => onSelect(null)}
+            onTap={() => onSelect(null)}
           />
 
           {bgImage && (

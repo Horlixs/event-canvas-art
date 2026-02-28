@@ -13,12 +13,17 @@ import {
   Camera,
   ChevronUp,
   Sparkles,
-  Link2
+  Link2,
+  ExternalLink,
+  PartyPopper,
+  X,
+  CalendarCheck
 } from 'lucide-react';
 import { useParams, Link } from 'react-router-dom';
 import { CanvasElement, TemplateData, TextElement } from '@/types/editor';
 import { toast } from 'sonner';
 import { getTemplateBySlug } from '@/lib/templates';
+import { incrementTemplateStat } from '@/lib/templates';
 import useImage from 'use-image';
 import { ImageCropper } from './ImageCropper';
 import { Button } from '@/components/ui/button';
@@ -82,6 +87,11 @@ const URLImageShape: React.FC<{
 
   const shapeFill: any = patternFill || { fill: 'fill' in element ? (element as any).fill : undefined };
 
+  const shapeStroke: any = {
+    stroke: element.stroke || '',
+    strokeWidth: element.strokeWidth || 0,
+  };
+
   return (
     <Group x={element.x} y={element.y} rotation={element.rotation} opacity={element.opacity ?? 1}>
       {children}
@@ -94,6 +104,7 @@ const URLImageShape: React.FC<{
           cornerRadius={element.cornerRadius}
           listening={element.isPlaceholder}
           {...shapeFill}
+          {...shapeStroke}
         />
       )}
       {element.type === 'circle' && (
@@ -101,6 +112,7 @@ const URLImageShape: React.FC<{
           radius={element.radius}
           listening={element.isPlaceholder}
           {...shapeFill}
+          {...shapeStroke}
         />
       )}
       {element.type === 'polygon' && (() => {
@@ -111,7 +123,7 @@ const URLImageShape: React.FC<{
           const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
           points.push(r * Math.cos(angle), r * Math.sin(angle));
         }
-        return <Line points={points} closed listening={element.isPlaceholder} {...shapeFill} />;
+        return <Line points={points} closed listening={element.isPlaceholder} {...shapeFill} {...shapeStroke} />;
       })()}
       {element.type === 'image' && (
         <Rect
@@ -163,6 +175,8 @@ const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({
           fontFamily={element.fontFamily}
           fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
           fill={element.fill}
+          stroke={element.stroke || ''}
+          strokeWidth={element.strokeWidth || 0}
           align={element.textAlign || 'center'}
         />
       </Group>
@@ -371,6 +385,7 @@ export const Generator: React.FC = () => {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const [showControls, setShowControls] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
+  const [showRegistrationPopup, setShowRegistrationPopup] = useState(false);
 
   // 1. Load Template
   useEffect(() => {
@@ -381,6 +396,8 @@ export const Generator: React.FC = () => {
         if (data) {
             setTemplate(data);
             setElements(data.elements);
+            // Track view
+            incrementTemplateStat(slug, 'views').catch(() => {});
         } else {
             setError('Template not found');
         }
@@ -517,6 +534,14 @@ export const Generator: React.FC = () => {
       link.click();
       document.body.removeChild(link);
       toast.success('Image saved to your device!');
+      
+      // Track download
+      if (slug) incrementTemplateStat(slug, 'downloads').catch(() => {});
+
+      // Show registration popup if a registration link exists
+      if (template?.registrationLink) {
+        setTimeout(() => setShowRegistrationPopup(true), 600);
+      }
     } catch (e) {
       console.error(e);
       toast.error('Could not generate image.');
@@ -528,12 +553,14 @@ export const Generator: React.FC = () => {
     if (navigator.share) {
       try {
         await navigator.share({ title: template?.name || 'Check out this design', url: shareUrl });
+        if (slug) incrementTemplateStat(slug, 'shares').catch(() => {});
       } catch { /* user cancelled */ }
     } else {
       await navigator.clipboard.writeText(shareUrl);
       toast.success('Link copied to clipboard!');
+      if (slug) incrementTemplateStat(slug, 'shares').catch(() => {});
     }
-  }, [template]);
+  }, [template, slug]);
 
   if (isLoading) return <GeneratorSkeleton />;
   if (error || !template) return <GeneratorError error={error || 'Template not found'} />;
@@ -750,6 +777,132 @@ export const Generator: React.FC = () => {
             onCropComplete={handleCropComplete}
             onCancel={() => setImageToCrop(null)}
           />
+        )}
+      </AnimatePresence>
+
+      {/* REGISTRATION / EVENT POPUP — shown after download */}
+      <AnimatePresence>
+        {showRegistrationPopup && template?.registrationLink && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xl p-0 sm:p-4"
+            onClick={() => setShowRegistrationPopup(false)}
+          >
+            <motion.div
+              initial={{ y: 80, opacity: 0, scale: 0.95 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              exit={{ y: 80, opacity: 0, scale: 0.95 }}
+              transition={{ type: 'spring', damping: 28, stiffness: 350 }}
+              className="bg-white dark:bg-[#1c1c1e] w-full sm:max-w-[420px] sm:rounded-[28px] rounded-t-[28px] shadow-2xl border-t sm:border border-black/5 dark:border-white/[0.08] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Decorative header gradient */}
+              <div className="relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-br from-blue-500/15 via-purple-500/10 to-pink-500/10 dark:from-blue-500/10 dark:via-purple-500/[0.06] dark:to-pink-500/[0.06]" />
+                <div className="absolute inset-0" style={{ backgroundImage: 'radial-gradient(circle at 30% 20%, rgba(0,113,227,0.15), transparent 50%), radial-gradient(circle at 70% 80%, rgba(168,85,247,0.1), transparent 50%)' }} />
+                
+                {/* Close button */}
+                <button
+                  onClick={() => setShowRegistrationPopup(false)}
+                  className="absolute top-4 right-4 z-10 w-8 h-8 rounded-full bg-black/5 dark:bg-white/10 flex items-center justify-center hover:bg-black/10 dark:hover:bg-white/15 transition-all active:scale-90"
+                >
+                  <X size={16} className="text-[#86868b]" />
+                </button>
+
+                <div className="relative px-7 pt-10 pb-6 text-center">
+                  {/* Animated party icon */}
+                  <motion.div
+                    initial={{ scale: 0, rotate: -30 }}
+                    animate={{ scale: 1, rotate: 0 }}
+                    transition={{ type: 'spring', damping: 12, stiffness: 180, delay: 0.15 }}
+                    className="w-[64px] h-[64px] bg-[black] text-white rounded-[20px] flex items-center justify-center mx-auto shadow-xl shadow-blue-500/25 dark:shadow-blue-500/15 mb-5"
+                  >
+                    <PartyPopper size={30} />
+                  </motion.div>
+
+                  <motion.div
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.25 }}
+                  >
+                    <h2 className="text-[22px] font-bold tracking-tight mb-2">
+                      That's great! 🎉
+                    </h2>
+                    <p className="text-[14px] text-[#86868b] leading-relaxed max-w-[300px] mx-auto">
+                      Your DP has been saved. Don't forget to register for <span className="font-semibold text-[#1d1d1f] dark:text-[#f5f5f7]">{template.eventName || template.name}</span>!
+                    </p>
+                  </motion.div>
+                </div>
+              </div>
+
+              {/* Event info card */}
+              <div className="px-7 pb-7 space-y-4">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="p-4 rounded-2xl bg-[#f5f5f7] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06]"
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <CalendarCheck size={18} className="text-blue-500" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[11px] font-bold uppercase tracking-[0.1em] text-[#86868b] mb-1">Event</p>
+                      <p className="text-[15px] font-bold tracking-tight truncate">{template.name}</p>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* CTA Button */}
+                <motion.a
+                  href={template.registrationLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45 }}
+                  className="flex items-center justify-center gap-2.5 w-full h-[52px] bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white rounded-2xl text-[15px] font-semibold shadow-lg shadow-blue-500/25 active:scale-[0.98] transition-all group"
+                >
+                  <span>Register Now</span>
+                  <ExternalLink size={16} className="group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-transform" />
+                </motion.a>
+
+                {/* Share + dismiss */}
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.55 }}
+                  className="flex items-center justify-between pt-1"
+                >
+                  <button
+                    onClick={() => {
+                      if (navigator.share) {
+                        navigator.share({ title: template.name, url: window.location.href });
+                      } else {
+                        navigator.clipboard.writeText(window.location.href);
+                        toast.success('Link copied!');
+                      }
+                    }}
+                    className="flex items-center gap-1.5 text-[12px] font-medium text-[#86868b] hover:text-blue-500 transition-colors"
+                  >
+                    <Share2 size={13} />
+                    Share with friends
+                  </button>
+                  <button
+                    onClick={() => setShowRegistrationPopup(false)}
+                    className="text-[12px] font-medium text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7] transition-colors"
+                  >
+                    Maybe later
+                  </button>
+                </motion.div>
+              </div>
+
+              <div className="safe-bottom" />
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
     </div>

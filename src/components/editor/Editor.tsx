@@ -12,7 +12,7 @@ import {
   ImagePlus, Layers, ZoomIn, ZoomOut, 
   Grid, Eye, Check, Maximize, 
   Trash2, ChevronLeft, ChevronUp, ChevronDown, MousePointer2, PanelRight,
-  Upload, Sparkles, Loader2, Pencil, Link2, GripVertical
+  Upload, Sparkles, Loader2, Pencil, Link2, GripVertical, Undo2, Redo2
 } from 'lucide-react';
 import { publishTemplate, updateTemplateSlug } from '@/lib/templates';
 import { compressImage } from '@/lib/imageUtils';
@@ -32,7 +32,8 @@ const LayerItem: React.FC<{
   onMoveUp: () => void;
   onMoveDown: () => void;
   onDelete: () => void;
-}> = ({ el, isSelected, onSelect, onRename, onMoveUp, onMoveDown, onDelete }) => {
+  showReorder: boolean;
+}> = ({ el, isSelected, onSelect, onRename, onMoveUp, onMoveDown, onDelete, showReorder }) => {
   const [isRenaming, setIsRenaming] = useState(false);
   const defaultLabel = el.type === 'text' ? (el as any).text : el.type;
   const displayName = el.name || defaultLabel;
@@ -45,7 +46,7 @@ const LayerItem: React.FC<{
         isSelected ? "bg-blue-500/[0.06] border-blue-500/20 shadow-sm" : "border-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02]"
       )}
     >
-      <GripVertical size={12} className="text-[#86868b]/30 shrink-0" />
+      {showReorder && <GripVertical size={12} className="text-[#86868b]/30 shrink-0" />}
       <div className={cn(
         "w-6 h-6 rounded-md flex items-center justify-center text-[9px] font-bold shrink-0",
         isSelected ? "bg-blue-500/10 text-blue-500" : "bg-black/[0.05] dark:bg-white/[0.05] opacity-60"
@@ -75,15 +76,17 @@ const LayerItem: React.FC<{
       {el.isPlaceholder && (
         <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 shrink-0">PH</span>
       )}
-      <div className="flex flex-col shrink-0 opacity-0 group-hover:opacity-100 transition-all">
-        <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} className="p-0.5 hover:text-blue-500 transition-colors" title="Move forward">
-          <ChevronUp size={11} />
-        </button>
-        <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} className="p-0.5 hover:text-blue-500 transition-colors" title="Move backward">
-          <ChevronDown size={11} />
-        </button>
-      </div>
-      <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 transition-all shrink-0">
+      {showReorder && (
+        <div className="flex flex-col shrink-0 opacity-0 group-hover:opacity-100 transition-all">
+          <button onClick={(e) => { e.stopPropagation(); onMoveUp(); }} className="p-0.5 text-[#86868b] hover:text-blue-500 transition-colors" title="Move forward">
+            <ChevronUp size={11} />
+          </button>
+          <button onClick={(e) => { e.stopPropagation(); onMoveDown(); }} className="p-0.5 text-[#86868b] hover:text-blue-500 transition-colors" title="Move backward">
+            <ChevronDown size={11} />
+          </button>
+        </div>
+      )}
+      <button onClick={(e) => { e.stopPropagation(); onDelete(); }} className="p-1 text-[#86868b] dark:text-[#98989d] hover:text-red-500 dark:hover:text-red-400 transition-all shrink-0" title="Delete">
         <Trash2 size={12} />
       </button>
     </div>
@@ -118,8 +121,21 @@ export const Editor: React.FC = () => {
   const [isMobile, setIsMobile] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
+  const [publishStep, setPublishStep] = useState<null | 'name' | 'registration'>(null);
+  const [publishName, setPublishName] = useState('');
+  const [hasRegLink, setHasRegLink] = useState(false);
+  const [regLinkInput, setRegLinkInput] = useState('');
+  const [eventNameInput, setEventNameInput] = useState('');
 
   const { user } = useAuth();
+
+  // Apply saved theme on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const root = document.documentElement;
+    root.classList.remove('light', 'dark');
+    root.classList.add(savedTheme);
+  }, []);
 
   // Detect mobile
   useEffect(() => {
@@ -139,7 +155,9 @@ export const Editor: React.FC = () => {
     backgroundColor, setBackgroundColor, backgroundImage, setBackgroundImage,
     addElement, updateElement, deleteElement, duplicateElement,
     moveElement, getSelectedElement, clearSelection, exportTemplate,
-    templateName, setTemplateName,
+    templateName, setTemplateName, registrationLink, setRegistrationLink,
+    eventName, setEventName,
+    undo, redo, canUndo, canRedo,
   } = useCanvas();
 
   const selectedElement = getSelectedElement();
@@ -162,10 +180,19 @@ export const Editor: React.FC = () => {
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const inInput = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
+      const target = e.target as HTMLElement;
+      const inInput = target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement || target instanceof HTMLSelectElement || target.isContentEditable;
       if (e.code === 'Space' && !e.repeat && !inInput) { e.preventDefault(); setIsSpacePressed(true); }
       if (e.code === 'Delete' || e.code === 'Backspace') {
         if (selectedId && !inInput) deleteElement(selectedId);
+      }
+      // Undo: Ctrl/Cmd+Z
+      if ((e.ctrlKey || e.metaKey) && e.code === 'KeyZ' && !e.shiftKey && !inInput) {
+        e.preventDefault(); undo();
+      }
+      // Redo: Ctrl/Cmd+Shift+Z or Ctrl+Y
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.code === 'KeyZ') || ((e.ctrlKey || e.metaKey) && e.code === 'KeyY')) {
+        if (!inInput) { e.preventDefault(); redo(); }
       }
     };
     const handleKeyUp = (e: KeyboardEvent) => {
@@ -174,7 +201,7 @@ export const Editor: React.FC = () => {
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
     return () => { window.removeEventListener('keydown', handleKeyDown); window.removeEventListener('keyup', handleKeyUp); };
-  }, [selectedId, deleteElement]);
+  }, [selectedId, deleteElement, undo, redo]);
 
   const handleWheel = (e: React.WheelEvent) => {
     if (e.ctrlKey || e.metaKey) {
@@ -235,10 +262,14 @@ export const Editor: React.FC = () => {
 
   const pendingPublishRef = useRef(false);
 
-  const doPublish = useCallback(async (userId: string) => {
+  const doPublish = useCallback(async (userId: string, overrides?: { name?: string; registrationLink?: string; eventName?: string }) => {
     setIsPublishing(true);
     try {
-      const result = await publishTemplate(exportTemplate(), userId);
+      const tpl = exportTemplate();
+      if (overrides?.name) tpl.name = overrides.name;
+      if (overrides?.registrationLink !== undefined) tpl.registrationLink = overrides.registrationLink || undefined;
+      if (overrides?.eventName !== undefined) (tpl as any).eventName = overrides.eventName || undefined;
+      const result = await publishTemplate(tpl, userId);
       if (result) {
         setOriginalSlug(result.slug);
         setPublishedSlug(result.slug);
@@ -253,6 +284,14 @@ export const Editor: React.FC = () => {
     finally { setIsPublishing(false); }
   }, [exportTemplate]);
 
+  const startPublishWizard = useCallback(() => {
+    setPublishName(templateName);
+    setRegLinkInput(registrationLink || '');
+    setHasRegLink(!!registrationLink);
+    setEventNameInput(eventName || '');
+    setPublishStep('name');
+  }, [templateName, registrationLink, eventName]);
+
   const handlePublish = useCallback(async () => {
     if (elements.length === 0) return toast.error('Canvas is empty. Add elements first.');
     if (!user) {
@@ -260,17 +299,31 @@ export const Editor: React.FC = () => {
       setShowAuthModal(true);
       return;
     }
-    doPublish(user.id);
-  }, [elements, user, doPublish]);
+    startPublishWizard();
+  }, [elements, user, startPublishWizard]);
 
-  // Auto-publish after successful login
+  const handlePublishConfirm = useCallback(() => {
+    if (!user) return;
+    const finalName = publishName.trim();
+    const finalLink = hasRegLink ? regLinkInput.trim() : '';
+    const finalEventName = hasRegLink ? eventNameInput.trim() : '';
+    // Update editor state for future edits
+    setTemplateName(finalName);
+    setRegistrationLink(finalLink);
+    setEventName(finalEventName);
+    setPublishStep(null);
+    // Publish with overrides (bypasses stale state)
+    doPublish(user.id, { name: finalName, registrationLink: finalLink, eventName: finalEventName });
+  }, [user, publishName, hasRegLink, regLinkInput, eventNameInput, doPublish, setTemplateName, setRegistrationLink, setEventName]);
+
+  // After successful login, show the publish wizard
   useEffect(() => {
     if (user && pendingPublishRef.current) {
       pendingPublishRef.current = false;
       setShowAuthModal(false);
-      doPublish(user.id);
+      startPublishWizard();
     }
-  }, [user, doPublish]);
+  }, [user, startPublishWizard]);
 
   // Open sidebar on selection (mobile)
   useEffect(() => {
@@ -314,6 +367,28 @@ export const Editor: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-1.5 md:gap-2">
+          {/* Undo / Redo */}
+          <div className="flex items-center gap-0.5">
+            <button
+              onClick={undo}
+              disabled={!canUndo}
+              className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 disabled:opacity-20 disabled:pointer-events-none"
+              title="Undo (Ctrl+Z)"
+            >
+              <Undo2 size={15} className="text-[#86868b]" />
+            </button>
+            <button
+              onClick={redo}
+              disabled={!canRedo}
+              className="h-8 w-8 rounded-lg flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-95 disabled:opacity-20 disabled:pointer-events-none"
+              title="Redo (Ctrl+Shift+Z)"
+            >
+              <Redo2 size={15} className="text-[#86868b]" />
+            </button>
+          </div>
+
+          <div className="w-px h-4 bg-black/[0.08] dark:bg-white/[0.08]" />
+
           {/* Design / Preview toggle */}
           <div className="flex items-center bg-black/[0.03] dark:bg-white/[0.03] rounded-full p-0.5">
             <button 
@@ -584,6 +659,49 @@ export const Editor: React.FC = () => {
                             </div>
                           </div>
                         )}
+
+                        {/* Registration link status (managed via publish flow) */}
+                        {registrationLink && (
+                          <div className="p-3 rounded-2xl bg-emerald-500/[0.04] border border-emerald-500/10">
+                            <div className="flex items-center gap-2">
+                              <Link2 size={13} className="text-emerald-500 shrink-0" />
+                              <div className="min-w-0 flex-1">
+                                <p className="text-[10px] font-bold uppercase tracking-[0.1em] text-emerald-600 dark:text-emerald-400">Event Link Active</p>
+                                <p className="text-[11px] text-[#86868b] truncate mt-0.5">{registrationLink}</p>
+                              </div>
+                              <button onClick={() => setRegistrationLink('')} className="text-[#86868b] hover:text-red-500 transition-colors shrink-0 p-1">
+                                <Trash2 size={12} />
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Quick layer list */}
+                        {elements.length > 0 && (
+                          <div className="space-y-3">
+                            <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#86868b]">Elements</h3>
+                            <div className="space-y-1">
+                              {reversedElements.map((el) => {
+                                const label = el.name || (el.type === 'text' ? (el as any).text : el.type);
+                                return (
+                                  <button
+                                    key={el.id}
+                                    onClick={() => setSelectedId(el.id)}
+                                    className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-transparent hover:bg-black/[0.02] dark:hover:bg-white/[0.02] hover:border-black/[0.04] dark:hover:border-white/[0.04] transition-all active:scale-[0.98] text-left"
+                                  >
+                                    <div className="w-6 h-6 rounded-md bg-black/[0.05] dark:bg-white/[0.05] flex items-center justify-center text-[9px] font-bold opacity-60 shrink-0">
+                                      {el.type.charAt(0).toUpperCase()}
+                                    </div>
+                                    <span className="text-[11px] font-semibold truncate flex-1">{label}</span>
+                                    {el.isPlaceholder && (
+                                      <span className="text-[8px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-500 shrink-0">PH</span>
+                                    )}
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
+                        )}
                       </div>
                     ) : (
                       <PropertiesPanel element={selectedElement!} onUpdate={(updates) => updateElement(selectedId, updates)} onClose={clearSelection} />
@@ -607,6 +725,7 @@ export const Editor: React.FC = () => {
                             onMoveUp={() => moveElement(el.id, 'up')}
                             onMoveDown={() => moveElement(el.id, 'down')}
                             onDelete={() => deleteElement(el.id)}
+                            showReorder={elements.length > 1}
                           />
                         ))
                       )}
@@ -890,6 +1009,188 @@ export const Editor: React.FC = () => {
         onClose={() => setShowAuthModal(false)}
         message="Sign in to publish your template"
       />
+
+      {/* PUBLISH WIZARD — 2-step popup (Name → Registration Link) */}
+      <AnimatePresence>
+        {publishStep && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[200] flex items-end sm:items-center justify-center bg-black/60 backdrop-blur-xl p-0 sm:p-4"
+            onClick={() => setPublishStep(null)}
+          >
+            <motion.div
+              initial={{ y: 60, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 60, opacity: 0 }}
+              transition={{ type: 'spring', damping: 32, stiffness: 400 }}
+              className="bg-white dark:bg-[#1c1c1e] w-full sm:max-w-[440px] sm:rounded-[28px] rounded-t-[28px] shadow-2xl border-t sm:border border-black/5 dark:border-white/[0.08] overflow-hidden"
+              onClick={e => e.stopPropagation()}
+            >
+              {/* Step indicator */}
+              <div className="flex items-center gap-2 px-7 pt-6 pb-2">
+                <div className={cn("h-1 flex-1 rounded-full transition-colors duration-300", "bg-[#0071e3]")} />
+                <div className={cn("h-1 flex-1 rounded-full transition-colors duration-300", publishStep === 'registration' ? "bg-[#0071e3]" : "bg-black/[0.06] dark:bg-white/[0.06]")} />
+              </div>
+
+              <AnimatePresence mode="wait">
+                {publishStep === 'name' && (
+                  <motion.div
+                    key="name-step"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="px-7 pt-4 pb-7 space-y-5"
+                  >
+                    <div className="text-center space-y-1.5">
+                      <div className="w-12 h-12 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center mx-auto mb-3">
+                        <Pencil size={22} className="text-[#0071e3]" />
+                      </div>
+                      <h2 className="text-[20px] font-bold tracking-tight">Name your template</h2>
+                      <p className="text-[13px] text-[#86868b] leading-relaxed">Give your design a memorable name</p>
+                    </div>
+
+                    <div className="space-y-2">
+                      <input
+                        autoFocus
+                        value={publishName}
+                        onChange={(e) => setPublishName(e.target.value)}
+                        placeholder="e.g. Birthday Party 2026"
+                        maxLength={60}
+                        className="w-full bg-[#f5f5f7] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] rounded-2xl px-4 py-3.5 text-[15px] font-semibold outline-none focus:border-[#0071e3]/30 focus:ring-2 focus:ring-[#0071e3]/10 transition-all placeholder:text-[#86868b]/40"
+                      />
+                      <p className="text-[10px] text-[#86868b] text-right">{publishName.length}/60</p>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setPublishStep(null)}
+                        className="flex-1 py-3 rounded-2xl text-[13px] font-semibold text-[#86868b] bg-black/[0.03] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-all active:scale-[0.98]"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        disabled={!publishName.trim()}
+                        onClick={() => setPublishStep('registration')}
+                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+                      >
+                        Continue
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+
+                {publishStep === 'registration' && (
+                  <motion.div
+                    key="registration-step"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{ duration: 0.2 }}
+                    className="px-7 pt-4 pb-7 space-y-5"
+                  >
+                    <div className="text-center space-y-1.5">
+                      <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
+                        <Link2 size={22} className="text-purple-500" />
+                      </div>
+                      <h2 className="text-[20px] font-bold tracking-tight">Registration link</h2>
+                      <p className="text-[13px] text-[#86868b] leading-relaxed">
+                        Do you have an event or registration link?
+                      </p>
+                    </div>
+
+                    {/* Yes / No toggle */}
+                    <div className="flex bg-black/[0.03] dark:bg-white/[0.03] rounded-xl p-1 gap-1">
+                      <button
+                        onClick={() => { setHasRegLink(true); }}
+                        className={cn(
+                          "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
+                          hasRegLink ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-purple-600 dark:text-purple-400" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+                        )}
+                      >
+                        Yes, I have one
+                      </button>
+                      <button
+                        onClick={() => { setHasRegLink(false); setRegLinkInput(''); }}
+                        className={cn(
+                          "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
+                          !hasRegLink ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-[#1d1d1f] dark:text-[#f5f5f7]" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+                        )}
+                      >
+                        No, skip
+                      </button>
+                    </div>
+
+                    {/* Link input — only if yes */}
+                    <AnimatePresence>
+                      {hasRegLink && (
+                        <motion.div
+                          initial={{ height: 0, opacity: 0 }}
+                          animate={{ height: 'auto', opacity: 1 }}
+                          exit={{ height: 0, opacity: 0 }}
+                          transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
+                          className="overflow-hidden"
+                        >
+                          <div className="space-y-3">
+                            {/* Event name */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#86868b]">Event Name</label>
+                              <input
+                                autoFocus
+                                value={eventNameInput}
+                                onChange={(e) => setEventNameInput(e.target.value)}
+                                placeholder="e.g. Tech Conference 2026"
+                                maxLength={80}
+                                className="w-full bg-[#f5f5f7] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] rounded-2xl px-4 py-3 text-[14px] font-medium outline-none focus:border-purple-500/30 focus:ring-2 focus:ring-purple-500/10 transition-all placeholder:text-[#86868b]/40"
+                              />
+                            </div>
+                            {/* Registration link */}
+                            <div className="space-y-1.5">
+                              <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#86868b]">Registration Link</label>
+                              <div className="flex items-center gap-2 bg-[#f5f5f7] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] rounded-2xl px-4 py-3 focus-within:border-purple-500/30 focus-within:ring-2 focus-within:ring-purple-500/10 transition-all">
+                                <Link2 size={15} className="text-[#86868b] shrink-0" />
+                                <input
+                                  value={regLinkInput}
+                                  onChange={(e) => setRegLinkInput(e.target.value)}
+                                  placeholder="https://event-link.com/register"
+                                  className="bg-transparent flex-1 text-[14px] font-medium outline-none min-w-0 placeholder:text-[#86868b]/40"
+                                />
+                              </div>
+                            </div>
+                            <p className="text-[10px] text-[#86868b] leading-relaxed">
+                              After downloading, users will see: "Don't forget to register for <b>{eventNameInput || 'your event'}</b>"
+                            </p>
+                          </div>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+
+                    <div className="flex gap-3">
+                      <button
+                        onClick={() => setPublishStep('name')}
+                        className="flex-1 py-3 rounded-2xl text-[13px] font-semibold text-[#86868b] bg-black/[0.03] dark:bg-white/[0.04] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] transition-all active:scale-[0.98]"
+                      >
+                        Back
+                      </button>
+                      <button
+                        disabled={hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())}
+                        onClick={handlePublishConfirm}
+                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                      >
+                        {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                        {isPublishing ? 'Publishing...' : 'Publish'}
+                      </button>
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Safe area for mobile */}
+              <div className="safe-bottom" />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -84,6 +84,8 @@ export const ShapeRenderer: React.FC<any> = ({
           offsetX={element.width / 2}
           offsetY={element.height / 2}
           fill={hasImage ? 'transparent' : element.fill}
+          stroke={element.stroke || ''}
+          strokeWidth={element.strokeWidth || 0}
           cornerRadius={element.cornerRadius || 0}
           perfectDrawEnabled={true}
         />
@@ -93,6 +95,8 @@ export const ShapeRenderer: React.FC<any> = ({
         <Circle
           radius={element.radius}
           fill={hasImage ? 'transparent' : element.fill}
+          stroke={element.stroke || ''}
+          strokeWidth={element.strokeWidth || 0}
           perfectDrawEnabled={true}
         />
       )}
@@ -110,6 +114,8 @@ export const ShapeRenderer: React.FC<any> = ({
             points={points}
             closed
             fill={hasImage ? 'transparent' : element.fill}
+            stroke={element.stroke || ''}
+            strokeWidth={element.strokeWidth || 0}
             perfectDrawEnabled={true}
           />
         );
@@ -121,6 +127,8 @@ export const ShapeRenderer: React.FC<any> = ({
           fontSize={element.fontSize}
           fontFamily={element.fontFamily || 'Inter'}
           fill={element.fill}
+          stroke={element.stroke || ''}
+          strokeWidth={element.strokeWidth || 0}
           align={element.textAlign || 'center'}
           width={element.width}
           offsetX={element.width / 2}
