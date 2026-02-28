@@ -7,7 +7,7 @@ import { ShapeRenderer } from './ShapeRenderer';
 export const CanvasStage = ({
   elements, selectedId, onSelect, onUpdate, canvasSize,
   backgroundColor, backgroundImage, stageRef, userImage, isGeneratorMode = false,
-  zoom = 1,
+  zoom = 1, isPreview = false,
 }) => {
   const transformerRef = useRef<Konva.Transformer>(null);
   const [bgImage] = useImage(backgroundImage || '', 'anonymous');
@@ -16,17 +16,17 @@ export const CanvasStage = ({
   useEffect(() => {
     if (transformerRef.current && stageRef.current) {
       const selectedNode = stageRef.current.findOne(`#${selectedId}`);
-      if (selectedNode && !isGeneratorMode) {
+      if (selectedNode && !isGeneratorMode && !isPreview) {
         transformerRef.current.nodes([selectedNode]);
         transformerRef.current.getLayer()?.batchDraw();
       } else {
         transformerRef.current.nodes([]);
       }
     }
-  }, [selectedId, isGeneratorMode, elements]);
+  }, [selectedId, isGeneratorMode, isPreview, elements]);
 
-  // Scale-compensated anchor size: appears ~12px regardless of zoom
-  const anchorSize = Math.max(8, Math.round(12 / zoom));
+  // Scale-compensated anchor size: appears ~16px regardless of zoom (bigger for mobile touch)
+  const anchorSize = Math.max(10, Math.round(16 / zoom));
 
   return (
     <div className="flex-1 relative flex items-center justify-center overflow-hidden">
@@ -67,7 +67,7 @@ export const CanvasStage = ({
             />
           ))}
 
-          {!isGeneratorMode && (
+          {!isGeneratorMode && !isPreview && (
             <Transformer
               ref={transformerRef}
               anchorSize={anchorSize}

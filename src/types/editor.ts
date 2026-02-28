@@ -11,6 +11,7 @@ export interface StrokeLayer {
 
 export interface BaseElement {
   id: string;
+  name?: string;
   type: ShapeType;
   x: number;
   y: number;

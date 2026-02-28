@@ -127,6 +127,29 @@ const URLImageShape: React.FC<{
   );
 };
 
+// --- HELPER: Watermark Logo (favicon) ---
+const WatermarkLogo: React.FC<{ width: number; height: number }> = ({ width, height }) => {
+  const [logo] = useImage('/favicon.ico', 'anonymous');
+  if (!logo) return null;
+  const size = Math.max(24, Math.round(width * 0.04));
+  const padding = Math.round(width * 0.025);
+  return (
+    <KonvaImage
+      image={logo}
+      width={size}
+      height={size}
+      x={width - size - padding}
+      y={height - size - padding}
+      opacity={0.5}
+      shadowColor="rgba(0,0,0,0.4)"
+      shadowBlur={4}
+      shadowOffsetX={1}
+      shadowOffsetY={1}
+      listening={false}
+    />
+  );
+};
+
 // --- HELPER: Main Shape Renderer ---
 const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({ element, userImage }) => {
   if (element.type === 'text') {
@@ -578,6 +601,8 @@ export const Generator: React.FC = () => {
                     {fontsLoaded && elements.map((el) => (
                       <RenderShape key={el.id} element={el} userImage={el.isPlaceholder ? userImages[el.id] : undefined} />
                     ))}
+                    {/* Watermark — favicon logo */}
+                    <WatermarkLogo width={template.width} height={template.height} />
                   </Layer>
                 </Stage>
               </div>
