@@ -269,7 +269,8 @@ export const Editor: React.FC = () => {
       if (overrides?.name) tpl.name = overrides.name;
       if (overrides?.registrationLink !== undefined) tpl.registrationLink = overrides.registrationLink || undefined;
       if (overrides?.eventName !== undefined) (tpl as any).eventName = overrides.eventName || undefined;
-      const result = await publishTemplate(tpl, userId);
+      const creatorName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || undefined;
+      const result = await publishTemplate(tpl, userId, creatorName);
       if (result) {
         setOriginalSlug(result.slug);
         setPublishedSlug(result.slug);
@@ -282,7 +283,7 @@ export const Editor: React.FC = () => {
       }
     } catch { toast.error('Publish failed. Please try again.'); } 
     finally { setIsPublishing(false); }
-  }, [exportTemplate]);
+  }, [exportTemplate, user]);
 
   const startPublishWizard = useCallback(() => {
     setPublishName(templateName);

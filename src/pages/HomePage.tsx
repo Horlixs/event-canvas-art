@@ -1,13 +1,14 @@
 import { useEffect, useState, useRef } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { getRecentTemplates, PublicTemplate } from "@/lib/templates";
 import { 
-  ArrowRight, Users, Share2, UploadCloud, 
+  ArrowRight, Share2,
   ChevronRight, LayoutDashboard, Zap, 
-  Camera, Globe2, BarChart3, Shield, Moon, Sun,
-  User, LogOut, Settings
+  Globe2, BarChart3, Shield, Moon, Sun,
+  LogOut, Eye, Download, Image as ImageIcon, Clock
 } from "lucide-react";
 
 // --- REFINED ANIMATION ---
@@ -28,6 +29,15 @@ const Homepage = () => {
   const { user, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
+  const [recentTemplates, setRecentTemplates] = useState<PublicTemplate[]>([]);
+
+  // Fetch recent templates
+  useEffect(() => {
+    getRecentTemplates(3).then((data) => {
+      console.log('Recent templates fetched:', data);
+      setRecentTemplates(data);
+    }).catch((err) => console.error('Error fetching recent templates:', err));
+  }, []);
 
   useEffect(() => {
     const root = window.document.documentElement;
@@ -51,6 +61,13 @@ const Homepage = () => {
     setTheme(theme === "light" ? "dark" : "light");
   };
 
+  const navigate = useNavigate();
+  const handleCreateNew = (e: React.MouseEvent) => {
+    e.preventDefault();
+    localStorage.removeItem('canvas_editor_state');
+    navigate('/create');
+  };
+
   const userInitials = user?.user_metadata?.full_name
     ? user.user_metadata.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2)
     : user?.email?.[0]?.toUpperCase() || '?';
@@ -60,24 +77,22 @@ const Homepage = () => {
       
       {/* 1. NAV - Restored All Links */}
       <header className="fixed top-0 w-full z-[100] border-b border-black/[0.05] dark:border-white/[0.05] bg-white/70 dark:bg-black/70 backdrop-blur-2xl">
-        <div className="max-w-[1440px] mx-auto h-14 flex items-center justify-between px-6">
-          <Link to="/" className="text-xl font-semibold tracking-tighter hover:opacity-70 transition-opacity">
-            Dummy<span className="text-blue-500">.</span>
-          </Link>
+        <div className="max-w-[1440px] mx-auto h-14 flex items-center px-6">
+          {/* Left — Logo (fixed width for balance) */}
+          <div className="flex-1 flex items-center">
+            <Link to="/" className="text-xl font-semibold tracking-tighter hover:opacity-70 transition-opacity">
+              Dummy<span className="text-blue-500">.</span>
+            </Link>
+          </div>
           
-          <nav className="hidden md:flex gap-8 text-[13px] font-medium opacity-80">
-            {["Create Campaign", "Explore", "Pricing", "About"].map((item) => (
-              <Link 
-                key={item} 
-                to={`/${item.toLowerCase().replace(" ", "-")}`} 
-                className="hover:text-blue-500 transition-colors"
-              >
-                {item}
-              </Link>
-            ))}
+          {/* Center — Nav Links */}
+          <nav className="hidden md:flex items-center gap-8 text-[13px] font-medium opacity-80">
+            <a href="/create" onClick={handleCreateNew} className="hover:text-blue-500 transition-colors">Create</a>
+            <Link to="/explore" className="hover:text-blue-500 transition-colors">Explore</Link>
           </nav>
 
-          <div className="flex items-center gap-4">
+          {/* Right — Actions (fixed width for balance) */}
+          <div className="flex-1 flex items-center justify-end gap-3">
             <button onClick={toggleTheme} className="p-2 opacity-60 hover:opacity-100 transition-opacity">
               {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
             </button>
@@ -88,7 +103,7 @@ const Homepage = () => {
                   onClick={() => setProfileOpen(!profileOpen)}
                   className="flex items-center gap-2.5 h-9 pl-1 pr-3 rounded-full bg-black/[0.04] dark:bg-white/[0.06] hover:bg-black/[0.07] dark:hover:bg-white/[0.1] transition-all active:scale-95"
                 >
-                  <div className="w-7 h-7 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[11px] font-bold shadow-sm">
+                  <div className="w-7 h-7 rounded-full bg-[#0071e3] flex items-center justify-center text-white text-[11px] font-bold shadow-sm">
                     {userInitials}
                   </div>
                   <span className="text-[13px] font-medium hidden sm:block max-w-[120px] truncate">
@@ -129,7 +144,7 @@ const Homepage = () => {
                         </Link>
                         <Link
                           to="/create"
-                          onClick={() => setProfileOpen(false)}
+                          onClick={(e) => { setProfileOpen(false); handleCreateNew(e); }}
                           className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium hover:bg-black/[0.04] dark:hover:bg-white/[0.04] transition-colors"
                         >
                           <Zap size={15} className="text-[#86868b]" />
@@ -137,7 +152,7 @@ const Homepage = () => {
                         </Link>
                         <div className="h-px bg-black/[0.05] dark:bg-white/[0.05] my-1 mx-2" />
                         <button
-                          onClick={() => { signOut(); setProfileOpen(false); }}
+                          onClick={async () => { setProfileOpen(false); await signOut(); }}
                           className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium hover:bg-red-500/[0.06] text-red-500 transition-colors w-full text-left"
                         >
                           <LogOut size={15} />
@@ -150,14 +165,14 @@ const Homepage = () => {
               </div>
             ) : (
               <>
-                <Link to="/login">
+                <Link to="/signin">
                     <Button variant="ghost" className="text-[13px] h-8 rounded-full">Sign In</Button>
                 </Link>
-                <Link to="/create">
+                <a href="/create" onClick={handleCreateNew}>
                     <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white text-[13px] h-8 px-4 rounded-full transition-all">
                     Get Started
                     </Button>
-                </Link>
+                </a>
               </>
             )}
           </div>
@@ -188,11 +203,11 @@ const Homepage = () => {
               infinite personalized updates, zero friction.
             </p>
             <div className="flex flex-col sm:flex-row justify-center gap-6">
-              <Link to="/create">
+              <a href="/create" onClick={handleCreateNew}>
                 <Button className="bg-[#1d1d1f] dark:bg-[#f5f5f7] text-white dark:text-black rounded-full px-10 py-7 text-lg font-medium hover:scale-[1.02] active:scale-95 transition-all">
                     Launch your campaign
                 </Button>
-              </Link>
+              </a>
               <Link to="/explore" className="flex items-center justify-center gap-2 group text-lg font-medium hover:opacity-70 transition-opacity">
                 See the gallery <ChevronRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
               </Link>
@@ -205,7 +220,7 @@ const Homepage = () => {
       <SectionWrapper className="max-w-[1200px] mx-auto px-6 py-20">
         <div className="grid grid-cols-1 md:grid-cols-12 gap-6 h-full">
           {/* Main Card */}
-          <Link to="/create" className="md:col-span-8 group relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#121212] p-10 border border-black/[0.03] dark:border-white/[0.03] shadow-sm transition-all hover:shadow-xl">
+          <a href="/create" onClick={handleCreateNew} className="md:col-span-8 group relative overflow-hidden rounded-[2rem] bg-white dark:bg-[#121212] p-10 border border-black/[0.03] dark:border-white/[0.03] shadow-sm transition-all hover:shadow-xl">
              <div className="relative z-10">
                <Zap className="text-blue-500 mb-6" />
                <h3 className="text-3xl font-bold mb-4">Instant Studio</h3>
@@ -213,7 +228,7 @@ const Homepage = () => {
                <span className="text-blue-500 font-medium flex items-center gap-1">Open editor <ArrowRight size={14}/></span>
              </div>
              <div className="absolute bottom-[-20%] right-[-10%] w-2/3 aspect-square bg-gradient-to-br from-blue-500/20 to-transparent rounded-full blur-3xl group-hover:scale-110 transition-transform duration-700" />
-          </Link>
+          </a>
 
           {/* Side Card */}
           <Link to="/explore" className="md:col-span-4 group rounded-[2rem] bg-[#f5f5f7] dark:bg-[#1d1d1f] p-10 flex flex-col justify-between hover:opacity-90 transition-all">
@@ -241,6 +256,81 @@ const Homepage = () => {
           </div>
         </div>
       </SectionWrapper>
+
+      {/* MOST RECENT TEMPLATES */}
+      {recentTemplates.length > 0 && (
+        <SectionWrapper className="max-w-[1200px] mx-auto px-6 py-20">
+          <div className="flex items-center justify-between mb-10">
+            <div>
+              <h2 className="text-3xl md:text-5xl font-bold tracking-tight">Most Recent</h2>
+              <p className="text-[#86868b] text-[15px] mt-2">Fresh templates from the community</p>
+            </div>
+            <Link to="/explore" className="hidden sm:flex items-center gap-1.5 text-[13px] font-semibold text-[#0071e3] hover:underline">
+              View all <ChevronRight size={14} />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {recentTemplates.map((t, i) => (
+              <motion.div
+                key={t.id}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
+              >
+                <Link
+                  to={`/dp/${t.slug}`}
+                  className="group bg-white dark:bg-[#1c1c1e] border border-black/[0.05] dark:border-white/[0.05] rounded-2xl overflow-hidden hover:shadow-xl hover:border-blue-500/10 transition-all duration-300 block"
+                >
+                  {/* Thumbnail */}
+                  <div
+                    className="aspect-[4/3] relative overflow-hidden"
+                    style={{ backgroundColor: t.background_color }}
+                  >
+                    {t.background_image ? (
+                      <img
+                        src={t.background_image}
+                        alt={t.name}
+                        className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        loading="lazy"
+                      />
+                    ) : (
+                      <div className="absolute inset-0 flex items-center justify-center">
+                        <ImageIcon size={32} className="text-white/20" />
+                      </div>
+                    )}
+                    {/* Hover overlay */}
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end p-3">
+                      <span className="h-8 px-3.5 rounded-full bg-white/95 text-[11px] font-semibold text-[#1d1d1f] flex items-center gap-1.5 shadow-lg">
+                        Generate DP <ArrowRight size={12} />
+                      </span>
+                    </div>
+                  </div>
+                  {/* Info */}
+                  <div className="p-4">
+                    <h3 className="text-[14px] font-semibold truncate mb-2 group-hover:text-blue-500 transition-colors">{t.name}</h3>
+                    {t.creator_name && (
+                      <p className="text-[11px] text-[#86868b] mb-1.5 truncate">Created by: {t.creator_name}</p>
+                    )}
+                    <div className="flex items-center gap-3 text-[11px] text-[#86868b]">
+                      <span className="flex items-center gap-1"><Eye size={10} /> {(t.views || 0).toLocaleString()}</span>
+                      <span className="flex items-center gap-1"><Download size={10} /> {(t.downloads || 0).toLocaleString()}</span>
+                      <span className="flex items-center gap-1"><Clock size={10} /> {new Date(t.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
+                    </div>
+                  </div>
+                </Link>
+              </motion.div>
+            ))}
+          </div>
+          <div className="sm:hidden mt-6 text-center">
+            <Link to="/explore">
+              <Button variant="outline" className="rounded-full border-black/10 dark:border-white/10 h-10 px-6 text-[13px]">
+                View all campaigns
+              </Button>
+            </Link>
+          </div>
+        </SectionWrapper>
+      )}
 
       {/* 4. SHOWCASE - Generic Links */}
       <SectionWrapper className="bg-[#f5f5f7] dark:bg-[#121212] py-32 mt-20">
@@ -311,19 +401,33 @@ const Homepage = () => {
   );
 };
 
-const FooterGroup = ({ title, links }) => (
-  <div className="flex flex-col gap-3">
-    <h4 className="text-[12px] font-semibold uppercase tracking-widest text-[#1d1d1f] dark:text-[#f5f5f7] mb-2">{title}</h4>
-    {links.map(link => (
-      <Link 
-        key={link.name} 
-        to={link.path} 
-        className="text-[13px] text-[#86868b] hover:text-blue-500 transition-colors"
-      >
-        {link.name}
-      </Link>
-    ))}
-  </div>
-);
+const FooterGroup = ({ title, links }) => {
+  const navigate = useNavigate();
+  return (
+    <div className="flex flex-col gap-3">
+      <h4 className="text-[12px] font-semibold uppercase tracking-widest text-[#1d1d1f] dark:text-[#f5f5f7] mb-2">{title}</h4>
+      {links.map(link => (
+        link.path === '/create' ? (
+          <a
+            key={link.name}
+            href="/create"
+            onClick={(e) => { e.preventDefault(); localStorage.removeItem('canvas_editor_state'); navigate('/create'); }}
+            className="text-[13px] text-[#86868b] hover:text-blue-500 transition-colors"
+          >
+            {link.name}
+          </a>
+        ) : (
+          <Link 
+            key={link.name} 
+            to={link.path} 
+            className="text-[13px] text-[#86868b] hover:text-blue-500 transition-colors"
+          >
+            {link.name}
+          </Link>
+        )
+      ))}
+    </div>
+  );
+};
 
 export default Homepage;

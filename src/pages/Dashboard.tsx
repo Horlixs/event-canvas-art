@@ -9,6 +9,16 @@ import {
   Clock, Download, Image as ImageIcon, Share2, TrendingUp
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 
@@ -65,16 +75,48 @@ const Dashboard: React.FC = () => {
     load();
   }, [user]);
 
-  const handleDelete = async (id: string) => {
-    setDeleting(id);
-    const { error } = await supabase.from('templates').delete().eq('id', id);
-    if (!error) {
-      setTemplates(prev => prev.filter(t => t.id !== id));
-      toast.success('Template deleted');
-    } else {
-      toast.error('Failed to delete');
-    }
-    setDeleting(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+
+  const handleDelete = (id: string) => {
+    setConfirmDeleteId(id);
+  };
+
+  const confirmDelete = async () => {
+    const id = confirmDeleteId;
+    if (!id) return;
+    setConfirmDeleteId(null);
+
+    // Optimistically remove from UI and keep a backup for undo
+    const deletedTemplate = templates.find(t => t.id === id);
+    setTemplates(prev => prev.filter(t => t.id !== id));
+
+    let undone = false;
+    const undoTimeout = setTimeout(async () => {
+      if (undone) return;
+      setDeleting(id);
+      const { error } = await supabase.from('templates').delete().eq('id', id);
+      if (error) {
+        // Restore on failure
+        if (deletedTemplate) setTemplates(prev => [...prev, deletedTemplate].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+        toast.error('Failed to delete');
+      }
+      setDeleting(null);
+    }, 5500);
+
+    toast('Template deleted', {
+      duration: 5000,
+      action: {
+        label: 'Undo',
+        onClick: () => {
+          undone = true;
+          clearTimeout(undoTimeout);
+          if (deletedTemplate) {
+            setTemplates(prev => [...prev, deletedTemplate].sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime()));
+          }
+          toast.success('Deletion cancelled');
+        },
+      },
+    });
   };
 
   const handleCopyLink = (slug: string) => {
@@ -85,6 +127,12 @@ const Dashboard: React.FC = () => {
   const handleSignOut = async () => {
     await signOut();
     navigate('/');
+  };
+
+  const handleCreateNew = (e: React.MouseEvent) => {
+    e.preventDefault();
+    localStorage.removeItem('canvas_editor_state');
+    navigate('/create');
   };
 
   const userInitials = user?.user_metadata?.full_name
@@ -131,13 +179,13 @@ const Dashboard: React.FC = () => {
             </Link>
           </div>
           <div className="flex items-center gap-2">
-            <Link to="/create">
+            <a href="/create" onClick={handleCreateNew}>
               <Button className="h-9 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full text-[12px] font-semibold px-4 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                 <Plus size={14} className="mr-1.5" />
                 <span className="hidden sm:inline">New Template</span>
                 <span className="sm:hidden">New</span>
               </Button>
-            </Link>
+            </a>
             <button
               onClick={handleSignOut}
               className="h-9 w-9 rounded-full flex items-center justify-center hover:bg-black/5 dark:hover:bg-white/5 transition-colors active:scale-95"
@@ -187,12 +235,12 @@ const Dashboard: React.FC = () => {
             <p className="text-[13px] text-[#86868b] max-w-[280px] mb-6 leading-relaxed">
               Create your first DP template and share it with your community.
             </p>
-            <Link to="/create">
+            <a href="/create" onClick={handleCreateNew}>
               <Button className="h-11 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-2xl text-[14px] font-semibold px-6 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                 <Plus size={16} className="mr-2" />
                 Create Template
               </Button>
-            </Link>
+            </a>
           </motion.div>
         ) : (
           <>
@@ -382,8 +430,9 @@ const Dashboard: React.FC = () => {
                 ))}
 
                 {/* Create new card */}
-                <Link
-                  to="/create"
+                <a
+                  href="/create"
+                  onClick={handleCreateNew}
                   className="group flex flex-col items-center justify-center gap-3 aspect-[4/3] rounded-2xl border-2 border-dashed border-black/[0.06] dark:border-white/[0.06] hover:border-blue-500/30 hover:bg-blue-500/[0.02] transition-all active:scale-[0.98]"
                 >
                   <div className="w-12 h-12 rounded-xl bg-black/[0.04] dark:bg-white/[0.04] group-hover:bg-blue-500/10 flex items-center justify-center transition-colors">
@@ -392,12 +441,33 @@ const Dashboard: React.FC = () => {
                   <span className="text-[13px] font-semibold text-[#86868b] group-hover:text-blue-500 transition-colors">
                     Create New
                   </span>
-                </Link>
+                </a>
               </div>
             </motion.div>
           </>
         )}
       </main>
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!confirmDeleteId} onOpenChange={(open) => { if (!open) setConfirmDeleteId(null); }}>
+        <AlertDialogContent className="bg-white dark:bg-[#1c1c1e] border-black/10 dark:border-white/10 rounded-2xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-[17px]">Delete this template?</AlertDialogTitle>
+            <AlertDialogDescription className="text-[13px] text-[#86868b]">
+              This will remove the template and its public link. You'll have 5 seconds to undo after confirming.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="rounded-xl text-[13px]">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmDelete}
+              className="rounded-xl text-[13px] bg-red-500 hover:bg-red-600 text-white"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

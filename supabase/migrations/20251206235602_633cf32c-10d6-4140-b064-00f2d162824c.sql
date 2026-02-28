@@ -1,5 +1,8 @@
--- Create templates table for storing organizer-created templates
-CREATE TABLE public.templates (
+-- 0) Ensure pgcrypto for gen_random_uuid()
+CREATE EXTENSION IF NOT EXISTS pgcrypto;
+
+-- 1) Create table if it doesn't exist (idempotent)
+CREATE TABLE IF NOT EXISTS public.templates (
   id UUID NOT NULL DEFAULT gen_random_uuid() PRIMARY KEY,
   slug TEXT NOT NULL UNIQUE,
   name TEXT NOT NULL DEFAULT 'Untitled Template',
@@ -8,45 +11,257 @@ CREATE TABLE public.templates (
   background_image TEXT,
   canvas_width INTEGER NOT NULL DEFAULT 1080,
   canvas_height INTEGER NOT NULL DEFAULT 1080,
+  user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+  views INTEGER NOT NULL DEFAULT 0,
+  downloads INTEGER NOT NULL DEFAULT 0,
+  shares INTEGER NOT NULL DEFAULT 0,
+  registration_link TEXT,
+  event_name TEXT,
+  custom_slug TEXT,
+  creator_name TEXT,
   created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now(),
   updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT now()
 );
 
--- Enable Row Level Security
+-- 2) Ensure analytics & extra columns exist (safe if table pre-existed without them)
+ALTER TABLE public.templates
+  ADD COLUMN IF NOT EXISTS views INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS downloads INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS shares INTEGER NOT NULL DEFAULT 0,
+  ADD COLUMN IF NOT EXISTS registration_link TEXT,
+  ADD COLUMN IF NOT EXISTS event_name TEXT,
+  ADD COLUMN IF NOT EXISTS custom_slug TEXT,
+  ADD COLUMN IF NOT EXISTS creator_name TEXT;
+
+-- 3) Indexes for common lookups
+CREATE INDEX IF NOT EXISTS idx_templates_user_id ON public.templates(user_id);
+CREATE INDEX IF NOT EXISTS idx_templates_slug ON public.templates(slug);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_templates_custom_slug
+  ON public.templates(custom_slug) WHERE custom_slug IS NOT NULL;
+
+-- 4) Enable Row Level Security
 ALTER TABLE public.templates ENABLE ROW LEVEL SECURITY;
 
--- Allow anyone to read templates (public sharing)
-CREATE POLICY "Templates are publicly readable" 
-ON public.templates 
-FOR SELECT 
-USING (true);
+-- 5) Allow public reads (needed for /dp/:slug generator page)
+-- Drop policy if exists then create it.
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_select_public'
+  ) THEN
+    -- use DROP POLICY IF EXISTS for safety as well
+    EXECUTE 'DROP POLICY IF EXISTS templates_select_public ON public.templates';
+  END IF;
+END;
+$$;
 
--- Allow anyone to create templates (no auth required for MVP)
-CREATE POLICY "Anyone can create templates" 
-ON public.templates 
-FOR INSERT 
-WITH CHECK (true);
+CREATE POLICY templates_select_public
+  ON public.templates
+  FOR SELECT
+  USING (true);
 
--- Allow anyone to update templates (for simplicity in MVP)
-CREATE POLICY "Anyone can update templates" 
-ON public.templates 
-FOR UPDATE 
-USING (true);
+-- 6) INSERT policy: ensure user_id equals auth.uid()
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_insert_authenticated'
+  ) THEN
+    EXECUTE 'DROP POLICY IF EXISTS templates_insert_authenticated ON public.templates';
+  END IF;
+END;
+$$;
 
--- Create function to update timestamps
+CREATE POLICY templates_insert_authenticated
+  ON public.templates
+  FOR INSERT
+  TO authenticated
+  WITH CHECK ( (SELECT auth.uid()) = user_id );
+
+-- 7) UPDATE policy: owners only
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_update_owner'
+  ) THEN
+    EXECUTE 'DROP POLICY IF EXISTS templates_update_owner ON public.templates';
+  END IF;
+END;
+$$;
+
+CREATE POLICY templates_update_owner
+  ON public.templates
+  FOR UPDATE
+  TO authenticated
+  USING ( (SELECT auth.uid()) = user_id )
+  WITH CHECK ( (SELECT auth.uid()) = user_id );
+
+-- 8) DELETE policy: owners only
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_delete_owner'
+  ) THEN
+    EXECUTE 'DROP POLICY IF EXISTS templates_delete_owner ON public.templates';
+  END IF;
+END;
+$$;
+
+CREATE POLICY templates_delete_owner
+  ON public.templates
+  FOR DELETE
+  TO authenticated
+  USING ( (SELECT auth.uid()) = user_id );
+
+-- 9) Helper function: set user_id from auth.uid() on insert (idempotent)
+CREATE OR REPLACE FUNCTION public.set_template_user_id()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+BEGIN
+  IF NEW.user_id IS NULL THEN
+    NEW.user_id := (SELECT auth.uid());
+  END IF;
+  RETURN NEW;
+END;
+$$ SECURITY DEFINER;
+
+-- Restrict execute for public roles (best-effort)
+REVOKE EXECUTE ON FUNCTION public.set_template_user_id() FROM PUBLIC;
+REVOKE EXECUTE ON FUNCTION public.set_template_user_id() FROM anon;
+REVOKE EXECUTE ON FUNCTION public.set_template_user_id() FROM authenticated;
+
+DROP TRIGGER IF EXISTS set_templates_user_id ON public.templates;
+CREATE TRIGGER set_templates_user_id
+BEFORE INSERT ON public.templates
+FOR EACH ROW
+EXECUTE FUNCTION public.set_template_user_id();
+
+-- 10) updated_at trigger/function (idempotent)
 CREATE OR REPLACE FUNCTION public.update_updated_at_column()
-RETURNS TRIGGER AS $$
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
 BEGIN
   NEW.updated_at = now();
   RETURN NEW;
 END;
-$$ LANGUAGE plpgsql SET search_path = public;
+$$;
 
--- Create trigger for automatic timestamp updates
+DROP TRIGGER IF EXISTS update_templates_updated_at ON public.templates;
 CREATE TRIGGER update_templates_updated_at
 BEFORE UPDATE ON public.templates
 FOR EACH ROW
 EXECUTE FUNCTION public.update_updated_at_column();
 
--- Create index for slug lookups
-CREATE INDEX idx_templates_slug ON public.templates(slug);
+-- 11) Atomic RPC to increment a stat counter with validation
+CREATE OR REPLACE FUNCTION public.increment_template_stat(
+  template_slug TEXT,
+  stat_name TEXT,
+  amount INTEGER DEFAULT 1
+)
+RETURNS VOID
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_amount INTEGER := COALESCE(amount, 1);
+  v_rows INTEGER;
+BEGIN
+  -- Validate amount
+  IF v_amount = 0 THEN
+    RETURN;
+  END IF;
+
+  IF v_amount < 0 THEN
+    RAISE EXCEPTION 'amount must be non-negative';
+  END IF;
+
+  -- Choose which column to update
+  IF stat_name = 'views' THEN
+    UPDATE public.templates
+    SET views = views + v_amount
+    WHERE slug = template_slug
+    RETURNING 1 INTO v_rows;
+
+  ELSIF stat_name = 'downloads' THEN
+    UPDATE public.templates
+    SET downloads = downloads + v_amount
+    WHERE slug = template_slug
+    RETURNING 1 INTO v_rows;
+
+  ELSIF stat_name = 'shares' THEN
+    UPDATE public.templates
+    SET shares = shares + v_amount
+    WHERE slug = template_slug
+    RETURNING 1 INTO v_rows;
+
+  ELSE
+    RAISE EXCEPTION 'invalid stat_name: %', stat_name;
+  END IF;
+
+  -- If no row updated, raise not found
+  IF v_rows IS NULL THEN
+    RAISE EXCEPTION 'template not found for slug: %', template_slug;
+  END IF;
+END;
+$$;
+
+-- 12) Allow anon (and authenticated) to call the stat increment RPC
+GRANT EXECUTE ON FUNCTION public.increment_template_stat(TEXT, TEXT, INTEGER) TO anon;
+GRANT EXECUTE ON FUNCTION public.increment_template_stat(TEXT, TEXT, INTEGER) TO authenticated;
+
+-- 13) Final sanity checks: ensure policies exist (no-op if present)
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_select_public'
+  ) THEN
+    EXECUTE 'CREATE POLICY templates_select_public ON public.templates FOR SELECT USING (true)';
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_insert_authenticated'
+  ) THEN
+    EXECUTE $sql$
+      CREATE POLICY templates_insert_authenticated
+        ON public.templates
+        FOR INSERT
+        TO authenticated
+        WITH CHECK ( (SELECT auth.uid()) = user_id )
+    $sql$;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_update_owner'
+  ) THEN
+    EXECUTE $sql$
+      CREATE POLICY templates_update_owner
+        ON public.templates
+        FOR UPDATE
+        TO authenticated
+        USING ( (SELECT auth.uid()) = user_id )
+        WITH CHECK ( (SELECT auth.uid()) = user_id )
+    $sql$;
+  END IF;
+
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE schemaname = 'public' AND tablename = 'templates' AND policyname = 'templates_delete_owner'
+  ) THEN
+    EXECUTE $sql$
+      CREATE POLICY templates_delete_owner
+        ON public.templates
+        FOR DELETE
+        TO authenticated
+        USING ( (SELECT auth.uid()) = user_id )
+    $sql$;
+  END IF;
+END;
+$$;

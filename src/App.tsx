@@ -10,7 +10,10 @@ import Homepage from "@/pages/HomePage";
 import Index from "./pages/Index"; // The Creator/Editor
 import { GeneratorPage } from "@/pages/GeneratorPage"; // Import your Generator component
 import Dashboard from "@/pages/Dashboard";
+import Explore from "@/pages/Explore";
 import TemplateDetail from "@/pages/TemplateDetail";
+import SignIn from "@/pages/SignIn";
+import SignUp from "@/pages/SignUp";
 import NotFound from "@/pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -26,11 +29,18 @@ const App = () => {
           <Routes>
             <Route path="/" element={<Homepage />} />
             
+            {/* Auth Pages */}
+            <Route path="/signin" element={<SignIn />} />
+            <Route path="/signup" element={<SignUp />} />
+            
             {/* Create New Designs */}
             <Route path="/create" element={<Index />} />
 
             {/* User Dashboard */}
             <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* Explore all templates */}
+            <Route path="/explore" element={<Explore />} />
             
             {/* View & Customize Published Designs */}
             <Route path="/dp/:slug" element={<GeneratorPage />} />
