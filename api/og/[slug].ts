@@ -1,12 +1,11 @@
 /**
  * Vercel Serverless Function — Dynamic OG tags for /dp/:slug
  *
- * Instead of a JS redirect, this function fetches the SPA's index.html
- * from the static CDN and injects dynamic OG meta tags into the <head>.
+ * Fetches the SPA's index.html from the CDN and injects dynamic
+ * OG meta tags into the <head>. No Edge runtime, no JSX, no @vercel/og.
  *
  * - Crawlers (WhatsApp, Twitter, Facebook) see the OG meta tags
  * - Browsers get the full SPA with scripts that render normally
- * - No redirect loops, single request
  */
 
 function esc(s: string): string {
@@ -39,15 +38,10 @@ export default async function handler(req: any, res: any) {
         ogTitle = `${row.name} | Dummy.io`;
         ogDescription = `Generate your personalized "${row.name}" DP on Dummy.io — customize and download instantly.`;
         const img = row.background_image || '';
-        const ogImageParams = new URLSearchParams({
-          title: row.name,
-          description: 'Generate your personalized DP on Dummy.io',
-          mode: 'template',
-        });
-        if (img && img.startsWith('http')) {
-          ogImageParams.set('bg', img);
+        // Use the template's background image directly as og:image
+        if (img.startsWith('http')) {
+          ogImage = img;
         }
-        ogImage = `${origin}/api/og-image?${ogImageParams.toString()}`;
       }
     } catch (e) {
       console.error('[og] Supabase fetch failed:', e);
@@ -70,8 +64,6 @@ export default async function handler(req: any, res: any) {
     // Build OG tag block
     const imageTags = ogImage
       ? `<meta property="og:image" content="${esc(ogImage)}" />
-    <meta property="og:image:width" content="1200" />
-    <meta property="og:image:height" content="630" />
     <meta name="twitter:image" content="${esc(ogImage)}" />`
       : '';
 
@@ -94,9 +86,18 @@ export default async function handler(req: any, res: any) {
     return res.status(200).send(html);
   } catch (fetchErr) {
     console.error('[og] Failed to fetch or inject into index.html:', fetchErr);
-    // Fallback: return a redirect to the SPA
-    res.writeHead(302, { Location: `/dp/${encodeURIComponent(slug)}#og` });
-    return res.end();
+    // Fallback: simple HTML with OG tags + JS redirect
+    const imageMeta = ogImage ? `<meta property="og:image" content="${esc(ogImage)}" />` : '';
+    const fallbackHtml = `<!DOCTYPE html><html><head>
+      <title>${esc(ogTitle)}</title>
+      <meta property="og:title" content="${esc(ogTitle)}" />
+      <meta property="og:description" content="${esc(ogDescription)}" />
+      ${imageMeta}
+      <meta name="twitter:card" content="summary_large_image" />
+      <script>location.replace("/dp/${esc(slug)}?_spa=1")</script>
+    </head><body></body></html>`;
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    return res.status(200).send(fallbackHtml);
   }
 }
 
