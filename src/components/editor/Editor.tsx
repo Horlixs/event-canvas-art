@@ -19,6 +19,7 @@ import { compressImage } from '@/lib/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ColorPicker } from './ColorPicker';
 import { CanvasElement, TemplateData } from '@/types/editor';
 
 type SidebarTab = 'properties' | 'layers';
@@ -597,26 +598,7 @@ export const Editor: React.FC = () => {
                         {/* Background fill */}
                         <div className="space-y-3">
                           <h3 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#86868b]">Background</h3>
-                          <div className="grid grid-cols-6 gap-2">
-                            {['#ffffff', '#000000', '#f4f4f4', '#0071e3', '#32d74b', '#ff453a'].map(c => (
-                              <button 
-                                key={c} 
-                                onClick={() => setBackgroundColor(c)} 
-                                className={cn(
-                                  "w-full aspect-square rounded-full border-2 transition-all hover:scale-110 active:scale-90",
-                                  backgroundColor === c ? "border-blue-500 ring-2 ring-blue-500/20" : "border-black/[0.05] dark:border-white/[0.1]"
-                                )} 
-                                style={{ backgroundColor: c }} 
-                              />
-                            ))}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2">
-                            <span className="text-[10px] text-[#86868b]">Custom</span>
-                            <div className="relative w-7 h-7 rounded-lg overflow-hidden border border-black/[0.05] dark:border-white/[0.1]">
-                              <input type="color" className="absolute -inset-2 w-[200%] h-[200%] cursor-pointer bg-transparent" value={backgroundColor} onChange={e => setBackgroundColor(e.target.value)} />
-                            </div>
-                            <span className="text-[11px] font-mono text-[#86868b] uppercase">{backgroundColor}</span>
-                          </div>
+                          <ColorPicker value={backgroundColor} onChange={setBackgroundColor} />
                         </div>
 
                         {/* Upload frame */}

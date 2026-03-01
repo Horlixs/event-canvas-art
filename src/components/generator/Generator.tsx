@@ -953,10 +953,10 @@ const ControlContent: React.FC<{
                 </div>
                 <div className="text-left flex-1 min-w-0">
                   <p className="text-[13px] font-semibold">
-                    {filled ? 'Change Photo' : `Upload Photo${placeholderElements.length > 1 ? ` ${index + 1}` : ''}`}
+                    {filled ? 'Change Photo' : (el.name || `Upload Photo${placeholderElements.length > 1 ? ` ${index + 1}` : ''}`)}
                   </p>
                   <p className="text-[11px] text-[#86868b]">
-                    {filled ? 'Tap to replace' : 'Tap to select from gallery'}
+                    {filled ? (el.name || 'Tap to replace') : 'Tap to select from gallery'}
                   </p>
                 </div>
                 {filled && (
@@ -982,7 +982,7 @@ const ControlContent: React.FC<{
           {textElements.map((el, i) => (
             <div key={el.id}>
               <label className="text-[11px] font-medium text-[#86868b] block mb-1.5">
-                {textElements.length === 1 ? 'Your Name' : `Line ${i + 1}`}
+                {el.name || (textElements.length === 1 ? 'Your Name' : `Line ${i + 1}`)}
               </label>
               <input 
                 value={el.text}

@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, ChevronDown, Check } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { ColorPicker } from "./ColorPicker";
 
 // ── Font data with available weights per family ──────────────────────────
 const FONT_DATA: Record<string, { weights: number[]; labels: Record<number, string> }> = {
@@ -216,12 +217,7 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
           {/* Fill color */}
           {'fill' in element && (
             <ControlRow label="Fill">
-              <div className="flex items-center gap-2 bg-black/[0.03] dark:bg-white/[0.04] px-2 py-1 rounded-lg border border-black/[0.04] dark:border-white/[0.04]">
-                <span className="text-[11px] font-mono uppercase text-[#86868b]">{element.fill}</span>
-                <div className="w-5 h-5 rounded-md overflow-hidden relative border border-black/10 dark:border-white/10">
-                  <input type="color" className="absolute -inset-2 w-[200%] h-[200%] cursor-pointer bg-transparent" value={element.fill} onChange={e => onUpdate({ fill: e.target.value })} />
-                </div>
-              </div>
+              <ColorPicker value={element.fill} onChange={(color) => onUpdate({ fill: color })} />
             </ControlRow>
           )}
 
@@ -234,12 +230,7 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
           <div className="space-y-2 pt-2">
             <h4 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#86868b]">Stroke</h4>
             <ControlRow label="Color">
-              <div className="flex items-center gap-2 bg-black/[0.03] dark:bg-white/[0.04] px-2 py-1 rounded-lg border border-black/[0.04] dark:border-white/[0.04]">
-                <span className="text-[11px] font-mono uppercase text-[#86868b]">{element.stroke || 'none'}</span>
-                <div className="w-5 h-5 rounded-md overflow-hidden relative border border-black/10 dark:border-white/10">
-                  <input type="color" className="absolute -inset-2 w-[200%] h-[200%] cursor-pointer bg-transparent" value={element.stroke || '#000000'} onChange={e => onUpdate({ stroke: e.target.value })} />
-                </div>
-              </div>
+              <ColorPicker value={element.stroke || '#000000'} onChange={(color) => onUpdate({ stroke: color })} />
             </ControlRow>
             <ControlRow label="Width"><CompactInput value={element.strokeWidth ?? 0} onChange={(w) => onUpdate({ strokeWidth: Number(w) })} unit="px" /></ControlRow>
             {(element.strokeWidth > 0 && element.stroke) && (
