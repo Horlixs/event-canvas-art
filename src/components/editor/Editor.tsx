@@ -189,6 +189,11 @@ export const Editor: React.FC = () => {
         // Preserve custom slug info for re-publish
         setOriginalSlug(data.slug);
         setPublishedSlug(data.slug);
+        if (data.custom_slug) {
+          setEditCustomSlug(data.custom_slug);
+          setCustomSlug(data.custom_slug);
+          setSavedCustomSlug(data.custom_slug);
+        }
         setTimeout(fitToScreen, 200);
       } else {
         toast.error('Template not found');
@@ -325,7 +330,8 @@ export const Editor: React.FC = () => {
           setCustomSlug('');
           setSavedCustomSlug(null);
         }
-        setPublishedUrl(`${window.location.origin}/dp/${result.slug}`);
+        const displaySlug = (editingSlug && (editCustomSlug || savedCustomSlug)) || result.slug;
+        setPublishedUrl(`${window.location.origin}/dp/${displaySlug}`);
         toast.success(editingSlug ? 'Template updated!' : 'Published successfully!');
       } else {
         toast.error('Publish failed. Please try again.');

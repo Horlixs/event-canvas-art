@@ -97,11 +97,12 @@ export const updateTemplateSlug = async (
   // Check availability against both slug and custom_slug columns
   const { data: existing } = await supabase
     .from('templates')
-    .select('id')
+    .select('id, slug')
     .or(`slug.eq.${sanitized},custom_slug.eq.${sanitized}`)
     .maybeSingle();
 
-  if (existing) return null; // slug taken
+  // Allow if the match is the same template (same originalSlug)
+  if (existing && (existing as any).slug !== originalSlug) return null; // slug taken
 
   const query = supabase
     .from('templates')
@@ -143,6 +144,7 @@ export const getTemplateBySlug = async (slug: string): Promise<TemplateData | nu
   return {
     id: data.id,
     slug: data.slug,
+    custom_slug: (data as any).custom_slug || null,
     name: data.name,
     width: data.canvas_width,
     height: data.canvas_height,

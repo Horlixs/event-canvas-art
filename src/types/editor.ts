@@ -80,6 +80,7 @@ export type CanvasElement =
 export interface TemplateData {
   id: string;
   slug: string;
+  custom_slug?: string | null;
   name: string;
   width: number;
   height: number;
