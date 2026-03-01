@@ -1,12 +1,12 @@
 /**
  * Vercel Serverless Function — Dynamic OG tags for /dp/:slug
  *
- * Uses raw fetch against the Supabase REST API (zero npm imports)
- * so there are no bundling issues in Vercel's serverless runtime.
+ * Instead of a JS redirect, this function fetches the SPA's index.html
+ * from the static CDN and injects dynamic OG meta tags into the <head>.
  *
- * For real browsers the page loads and immediately redirects to the
- * SPA version. Social crawlers (WhatsApp, Twitter, Facebook, etc.)
- * don't execute JS, so they see the OG meta tags in the <head>.
+ * - Crawlers (WhatsApp, Twitter, Facebook) see the OG meta tags
+ * - Browsers get the full SPA with scripts that render normally
+ * - No redirect loops, single request
  */
 
 function esc(s: string): string {
@@ -21,7 +21,6 @@ export default async function handler(req: any, res: any) {
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'dummy-io.vercel.app';
   const origin = `${proto}://${host}`;
   const ogUrl = `${origin}/dp/${slug}`;
-  const spaRedirect = `/dp/${esc(slug)}?_spa=1`;
 
   let ogTitle = 'Dummy.io | Edit custom Dummies';
   let ogDescription = 'Create and customize personalized DPs with Dummy.io';
@@ -42,10 +41,9 @@ export default async function handler(req: any, res: any) {
         const img = row.background_image || '';
         const ogImageParams = new URLSearchParams({
           title: row.name,
-          description: `Generate your personalized DP on Dummy.io`,
+          description: 'Generate your personalized DP on Dummy.io',
           mode: 'template',
         });
-        // Include real background image URL if available
         if (img && img.startsWith('http')) {
           ogImageParams.set('bg', img);
         }
@@ -56,56 +54,50 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  return sendOgHtml(res, { ogTitle, ogDescription, ogImage, ogUrl, spaRedirect });
-}
+  // ── Fetch the SPA's index.html from CDN and inject OG tags ──
+  try {
+    const spaRes = await fetch(`${origin}/index.html`);
+    if (!spaRes.ok) throw new Error(`Failed to fetch index.html: ${spaRes.status}`);
+    let html = await spaRes.text();
 
-// ── Shared HTML builder ──
-function sendOgHtml(res: any, opts: {
-  ogTitle: string;
-  ogDescription: string;
-  ogImage: string;
-  ogUrl: string;
-  spaRedirect: string;
-}) {
-  const { ogTitle, ogDescription, ogImage, ogUrl, spaRedirect } = opts;
+    // Strip any existing generic OG / Twitter tags from index.html
+    html = html.replace(/<meta\s+property="og:[^"]*"[^>]*\/?>/gi, '');
+    html = html.replace(/<meta\s+name="twitter:[^"]*"[^>]*\/?>/gi, '');
 
-  const imageTags = ogImage
-    ? `<meta property="og:image" content="${esc(ogImage)}" />
+    // Update <title>
+    html = html.replace(/<title>[^<]*<\/title>/, `<title>${esc(ogTitle)}</title>`);
+
+    // Build OG tag block
+    const imageTags = ogImage
+      ? `<meta property="og:image" content="${esc(ogImage)}" />
     <meta property="og:image:width" content="1200" />
     <meta property="og:image:height" content="630" />
     <meta name="twitter:image" content="${esc(ogImage)}" />`
-    : '';
+      : '';
 
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>${esc(ogTitle)}</title>
-  <meta name="description" content="${esc(ogDescription)}" />
+    const ogBlock = `
+    <!-- Dynamic OG tags (injected by serverless function) -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="${esc(ogUrl)}" />
+    <meta property="og:title" content="${esc(ogTitle)}" />
+    <meta property="og:description" content="${esc(ogDescription)}" />
+    ${imageTags}
+    <meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}" />
+    <meta name="twitter:title" content="${esc(ogTitle)}" />
+    <meta name="twitter:description" content="${esc(ogDescription)}" />
+  `;
 
-  <!-- Open Graph -->
-  <meta property="og:type" content="website" />
-  <meta property="og:url" content="${esc(ogUrl)}" />
-  <meta property="og:title" content="${esc(ogTitle)}" />
-  <meta property="og:description" content="${esc(ogDescription)}" />
-  ${imageTags}
+    html = html.replace('</head>', ogBlock + '</head>');
 
-  <!-- Twitter Card -->
-  <meta name="twitter:card" content="${ogImage ? 'summary_large_image' : 'summary'}" />
-  <meta name="twitter:title" content="${esc(ogTitle)}" />
-  <meta name="twitter:description" content="${esc(ogDescription)}" />
-
-  <!-- Redirect real browsers to the SPA -->
-  <script>location.replace("${spaRedirect}")</script>
-  <noscript><meta http-equiv="refresh" content="0;url=${spaRedirect}" /></noscript>
-</head>
-<body></body>
-</html>`;
-
-  res.setHeader('Content-Type', 'text/html; charset=utf-8');
-  res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
-  return res.status(200).send(html);
+    res.setHeader('Content-Type', 'text/html; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, s-maxage=3600, stale-while-revalidate=86400');
+    return res.status(200).send(html);
+  } catch (fetchErr) {
+    console.error('[og] Failed to fetch or inject into index.html:', fetchErr);
+    // Fallback: return a redirect to the SPA
+    res.writeHead(302, { Location: `/dp/${encodeURIComponent(slug)}#og` });
+    return res.end();
+  }
 }
 
 /** Lightweight Supabase REST fetch — no SDK required */
