@@ -1,73 +1,142 @@
-# Welcome to your Lovable project
+# Event Canvas Art
 
-## Project info
+A modern, interactive event canvas art application built with TypeScript, React, and Tailwind CSS.
 
-**URL**: https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID
+## About
 
-## How can I edit this code?
+Event Canvas Art is a web application designed to create, manage, and display interactive canvas-based artwork for events. The project uses a full-stack approach with a React frontend and database backend.
 
-There are several ways of editing your application.
+## Getting Started
 
-**Use Lovable**
+### Prerequisites
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and start prompting.
+- Node.js (v16 or higher)
+- npm or yarn
+- A PostgreSQL database (optional, for full backend functionality)
 
-Changes made via Lovable will be committed automatically to this repo.
+### Installation
 
-**Use your preferred IDE**
-
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
-
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
-
-Follow these steps:
+Follow these steps to set up the project locally:
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Step 1: Clone the repository
+git clone https://github.com/Horlixs/event-canvas-art.git
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Step 2: Navigate to the project directory
+cd event-canvas-art
 
-# Step 3: Install the necessary dependencies.
+# Step 3: Install dependencies
 npm i
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Step 4: Set up environment variables (if needed)
+# Create a .env file and add your configuration
+
+# Step 5: Start the development server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+The application will be available at `http://localhost:5173` (or your configured port).
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
-
-**Use GitHub Codespaces**
-
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
+## Technologies Used
 
 This project is built with:
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+- **Frontend Framework**: React with TypeScript
+- **Build Tool**: Vite
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn-ui
+- **Database**: PostgreSQL (PLpgSQL)
+- **Languages**: TypeScript, JavaScript, HTML, CSS
 
-## How can I deploy this project?
+## Development
 
-Simply open [Lovable](https://lovable.dev/projects/REPLACE_WITH_PROJECT_ID) and click on Share -> Publish.
+### Available Scripts
 
-## Can I connect a custom domain to my Lovable project?
+```sh
+# Start development server with hot module reloading
+npm run dev
 
-Yes, you can!
+# Build for production
+npm run build
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+# Preview production build
+npm run preview
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/features/custom-domain#custom-domain)
+# Run linting (if configured)
+npm run lint
+```
+
+### Project Structure
+
+```
+event-canvas-art/
+├── src/              # Source code
+│   ├── components/   # React components
+│   ├── pages/        # Page components
+│   ├── styles/       # CSS and styling
+│   └── utils/        # Utility functions
+├── public/           # Static assets
+├── index.html        # HTML entry point
+└── vite.config.ts    # Vite configuration
+```
+
+## Editing Code
+
+### Option 1: Use Your IDE
+
+Clone the repository and edit files locally with your preferred code editor. Push your changes back to GitHub.
+
+### Option 2: Edit on GitHub
+
+1. Navigate to the file you want to edit
+2. Click the pencil icon (Edit) in the top right
+3. Make your changes and commit
+
+### Option 3: Use GitHub Codespaces
+
+1. Go to your repository's main page
+2. Click the green "Code" button
+3. Select the "Codespaces" tab
+4. Click "New codespace"
+5. Edit files and commit your changes
+
+## Deployment
+
+### Deploy to Production
+
+Choose your preferred hosting platform:
+
+- **Vercel**: Connect your GitHub repo for automatic deployments
+- **Netlify**: Similar GitHub integration with zero-config builds
+- **GitHub Pages**: For static sites with `npm run build`
+- **Traditional Hosting**: Build locally and upload the `dist/` folder
+
+### Build for Production
+
+```sh
+npm run build
+```
+
+This creates an optimized production build in the `dist/` folder.
+
+## Contributing
+
+Contributions are welcome! Feel free to:
+
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
+
+## License
+
+This project is open source. Check the LICENSE file for details.
+
+## Support
+
+For issues, questions, or feedback, please open an [issue](https://github.com/Horlixs/event-canvas-art/issues) on GitHub.
+
+---
+
+Last updated: March 2026
