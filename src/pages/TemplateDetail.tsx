@@ -183,8 +183,11 @@ const TemplateDetail: React.FC = () => {
         >
           {/* Thumbnail */}
           <div
-            className="w-full md:w-[280px] aspect-[4/3] rounded-2xl overflow-hidden border border-black/[0.05] dark:border-white/[0.05] shrink-0 relative shadow-xl"
-            style={{ backgroundColor: template.background_color }}
+            className="w-full md:w-[280px] rounded-2xl overflow-hidden border border-black/[0.05] dark:border-white/[0.05] shrink-0 relative shadow-xl"
+            style={{ 
+              backgroundColor: template.background_color,
+              aspectRatio: `${template.canvas_width} / ${template.canvas_height}`,
+            }}
           >
             {template.background_image ? (
               <img src={template.background_image} alt={template.name} className="w-full h-full object-cover" />

@@ -228,14 +228,8 @@ export interface PublicTemplate {
 
 /** Fetch the N most recent public templates (all templates are public once published). */
 export const getRecentTemplates = async (limit = 3): Promise<PublicTemplate[]> => {
-  const { data, error } = await supabase
-    .from('templates' as any)
-    .select('id, slug, name, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name')
-    .order('created_at', { ascending: false })
-    .limit(limit) as unknown as { data: PublicTemplate[] | null; error: any };
-
-  if (error || !data) return [];
-  return data;
+  const all = await getAllPublicTemplates();
+  return all.slice(0, limit);
 };
 
 /** Fetch all public templates ordered by most recent. */
