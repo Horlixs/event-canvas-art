@@ -40,9 +40,16 @@ export default async function handler(req: any, res: any) {
         ogTitle = `${row.name} | Dummy.io`;
         ogDescription = `Generate your personalized "${row.name}" DP on Dummy.io — customize and download instantly.`;
         const img = row.background_image || '';
+        const ogImageParams = new URLSearchParams({
+          title: row.name,
+          description: `Generate your personalized DP on Dummy.io`,
+          mode: 'template',
+        });
+        // Include real background image URL if available
         if (img && img.startsWith('http')) {
-          ogImage = img;
+          ogImageParams.set('bg', img);
         }
+        ogImage = `${origin}/api/og-image?${ogImageParams.toString()}`;
       }
     } catch (e) {
       console.error('[og] Supabase fetch failed:', e);
