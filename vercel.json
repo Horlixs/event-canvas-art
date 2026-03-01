@@ -1,9 +1,4 @@
 {
-  "functions": {
-    "api/og/[slug].ts": {
-      "includeFiles": "dist/index.html"
-    }
-  },
   "rewrites": [
     {
       "source": "/dp/:slug",
