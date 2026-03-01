@@ -122,7 +122,7 @@ const Homepage = () => {
                     >
                       <div className="p-4 border-b border-black/[0.05] dark:border-white/[0.05]">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-[13px] font-bold shadow-sm">
+                          <div className="w-10 h-10 rounded-full bg-[#0071e3] flex items-center justify-center text-white text-[13px] font-bold shadow-sm">
                             {userInitials}
                           </div>
                           <div className="min-w-0 flex-1">
