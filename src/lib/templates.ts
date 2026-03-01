@@ -94,23 +94,29 @@ export const updateTemplateSlug = async (
   const sanitized = newCustomSlug.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30);
   if (sanitized.length < 3) return null;
 
-  // Check availability against both slug and custom_slug columns,
-  // excluding the current template so it can keep/re-save its own custom_slug
-  const { data: conflict } = await (supabase
+  // Get this template's ID so we can exclude it from the conflict check
+  const { data: self } = await supabase
     .from('templates')
     .select('id')
-    .or(`slug.eq.${sanitized},custom_slug.eq.${sanitized}`) as any)
-    .neq('slug', originalSlug)
+    .eq('slug', originalSlug)
     .maybeSingle();
 
+  if (!self) return null;
+
+  // Check if any OTHER template already uses this slug
+  const { data: allMatches } = await (supabase
+    .from('templates')
+    .select('id')
+    .or(`slug.eq.${sanitized},custom_slug.eq.${sanitized}`) as any);
+
+  const conflict = (allMatches || []).some((row: any) => row.id !== self.id);
   if (conflict) return null; // slug taken by another template
 
-  const query = supabase
+  const { error } = await (supabase
     .from('templates')
     .update({ custom_slug: sanitized } as any)
-    .eq('slug', originalSlug) as any;
-
-  const { error } = await query.eq('user_id', userId);
+    .eq('slug', originalSlug) as any)
+    .eq('user_id', userId);
 
   if (error) {
     console.error('Error updating custom slug:', error);
