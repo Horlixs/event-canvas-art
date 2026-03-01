@@ -167,11 +167,30 @@ export const getTemplateBySlug = async (slug: string): Promise<TemplateData | nu
 
 export type StatName = 'views' | 'downloads' | 'shares';
 
-export const incrementTemplateStat = async (slug: string, stat: StatName) => {
+export const incrementTemplateStat = async (slugOrCustom: string, stat: StatName) => {
   try {
+    // Resolve the primary slug (the URL param could be a custom_slug)
+    let primarySlug = slugOrCustom;
+    const { data: row } = await supabase
+      .from('templates')
+      .select('slug')
+      .eq('slug', slugOrCustom)
+      .maybeSingle();
+
+    if (!row) {
+      // Try matching by custom_slug
+      const { data: customRow } = await (supabase
+        .from('templates')
+        .select('slug') as any)
+        .eq('custom_slug', slugOrCustom)
+        .maybeSingle();
+      if (customRow) primarySlug = customRow.slug;
+      else return; // template not found
+    }
+
     // Try RPC first (atomic increment)
     const { error: rpcError } = await (supabase.rpc as any)('increment_template_stat', {
-      template_slug: slug,
+      template_slug: primarySlug,
       stat_name: stat,
       amount: 1,
     });
@@ -181,14 +200,14 @@ export const incrementTemplateStat = async (slug: string, stat: StatName) => {
       const { data } = await supabase
         .from('templates')
         .select(stat)
-        .eq('slug', slug)
+        .eq('slug', primarySlug)
         .maybeSingle() as any;
 
       if (data) {
         await supabase
           .from('templates')
           .update({ [stat]: (data[stat] || 0) + 1 } as any)
-          .eq('slug', slug);
+          .eq('slug', primarySlug);
       }
     }
   } catch {

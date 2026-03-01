@@ -75,6 +75,31 @@ const Dashboard: React.FC = () => {
     load();
   }, [user]);
 
+  // Real-time stats subscription
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('dashboard-stats')
+      .on(
+        'postgres_changes' as any,
+        { event: 'UPDATE', schema: 'public', table: 'templates', filter: `user_id=eq.${user.id}` },
+        (payload: any) => {
+          if (payload.new) {
+            setTemplates(prev =>
+              prev.map(t =>
+                t.id === payload.new.id
+                  ? { ...t, views: payload.new.views, downloads: payload.new.downloads, shares: payload.new.shares }
+                  : t
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
+
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
   const handleDelete = (id: string) => {

@@ -265,3 +265,6 @@ BEGIN
   END IF;
 END;
 $$;
+
+-- 14) Enable Realtime for templates table so stats update in real-time
+ALTER PUBLICATION supabase_realtime ADD TABLE public.templates;
