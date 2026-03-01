@@ -173,6 +173,8 @@ const TemplateDetail: React.FC = () => {
             )}
             <Link
               to={`/dp/${template.custom_slug || template.slug}`}
+              target="_blank"
+              rel="noopener noreferrer"
               className="h-8 px-3 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[12px] font-semibold flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
             >
               <ExternalLink size={13} />
@@ -425,6 +427,8 @@ const TemplateDetail: React.FC = () => {
 
               <Link
                 to={`/dp/${template.custom_slug || template.slug}`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] hover:border-blue-500/20 hover:bg-blue-500/[0.02] transition-all active:scale-[0.98] group"
               >
                 <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">

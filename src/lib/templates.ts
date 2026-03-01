@@ -275,6 +275,7 @@ export const getTemplateFullData = async (slug: string) => {
 export interface PublicTemplate {
   id: string;
   slug: string;
+  custom_slug?: string | null;
   name: string;
   background_color: string;
   background_image: string | null;
@@ -297,7 +298,7 @@ export const getRecentTemplates = async (limit = 3): Promise<PublicTemplate[]> =
 export const getAllPublicTemplates = async (): Promise<PublicTemplate[]> => {
   const { data, error } = await supabase
     .from('templates' as any)
-    .select('id, slug, name, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name')
+    .select('id, slug, custom_slug, name, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name')
     .order('created_at', { ascending: false }) as unknown as { data: PublicTemplate[] | null; error: any };
 
   if (error || !data) return [];

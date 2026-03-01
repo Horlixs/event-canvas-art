@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 interface TemplateRow {
   id: string;
   slug: string;
+  custom_slug?: string | null;
   name: string;
   canvas_width: number;
   canvas_height: number;
@@ -65,7 +66,7 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('templates' as any)
-        .select('id, slug, name, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares')
+        .select('id, slug, custom_slug, name, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false }) as unknown as { data: TemplateRow[] | null; error: any };
 
@@ -144,8 +145,9 @@ const Dashboard: React.FC = () => {
     });
   };
 
-  const handleCopyLink = (slug: string) => {
-    navigator.clipboard.writeText(`${window.location.origin}/dp/${slug}`);
+  const handleCopyLink = (template: TemplateRow) => {
+    const dpSlug = template.custom_slug || template.slug;
+    navigator.clipboard.writeText(`${window.location.origin}/dp/${dpSlug}`);
     toast.success('Link copied!');
   };
 
@@ -431,7 +433,7 @@ const Dashboard: React.FC = () => {
                         </Link>
                         <div className="flex items-center gap-1 shrink-0">
                           <button
-                            onClick={() => handleCopyLink(t.slug)}
+                            onClick={() => handleCopyLink(t)}
                             className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all active:scale-90 text-[#86868b]"
                             title="Copy link"
                           >

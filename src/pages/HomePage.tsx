@@ -279,7 +279,9 @@ const Homepage = () => {
                 transition={{ delay: i * 0.08, duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
               >
                 <Link
-                  to={`/dp/${t.slug}`}
+                  to={`/dp/${t.custom_slug || t.slug}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="group bg-white dark:bg-[#1c1c1e] border border-black/[0.05] dark:border-white/[0.05] rounded-2xl overflow-hidden hover:shadow-xl hover:border-blue-500/10 transition-all duration-300 block"
                 >
                   {/* Thumbnail */}
