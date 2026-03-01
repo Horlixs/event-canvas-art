@@ -1,6 +1,15 @@
 {
   "rewrites": [
     {
+      "source": "/",
+      "has": [{ "type": "query", "key": "_spa" }],
+      "destination": "/index.html"
+    },
+    {
+      "source": "/",
+      "destination": "/api/og/index"
+    },
+    {
       "source": "/dp/:slug",
       "has": [{ "type": "query", "key": "_spa" }],
       "destination": "/index.html"

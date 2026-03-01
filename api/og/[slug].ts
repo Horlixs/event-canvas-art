@@ -17,31 +17,28 @@ export default async function handler(req: any, res: any) {
   const slug = Array.isArray(req.query.slug) ? req.query.slug[0] : req.query.slug;
   if (!slug) return res.redirect('/');
 
-  // Detect the host so the OG url is always correct regardless of domain
   const proto = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'dummy-io.vercel.app';
   const origin = `${proto}://${host}`;
   const ogUrl = `${origin}/dp/${slug}`;
+  const spaRedirect = `/dp/${esc(slug)}?_spa=1`;
 
   let ogTitle = 'Dummy.io | Edit custom Dummies';
-  let ogDescription = 'Edit your dummy pictures with our Dummy editor.';
+  let ogDescription = 'Create and customize personalized DPs with Dummy.io';
   let ogImage = '';
 
-  // ── Fetch template from Supabase REST API (no SDK import needed) ──
+  // ── Fetch template from Supabase REST API ──
   const sbUrl = process.env.VITE_SUPABASE_URL;
   const sbKey = process.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
   if (sbUrl && sbKey) {
     try {
-      // Try primary slug
       let row = await fetchTemplate(sbUrl, sbKey, 'slug', slug);
-      // Fallback: try custom_slug
       if (!row) row = await fetchTemplate(sbUrl, sbKey, 'custom_slug', slug);
 
       if (row) {
         ogTitle = `${row.name} | Dummy.io`;
-        ogDescription = `Generate your personalized "${row.name}" DP on Dummy.io`;
-        // Only use the image if it's an actual URL (not a data URI)
+        ogDescription = `Generate your personalized "${row.name}" DP on Dummy.io — customize and download instantly.`;
         const img = row.background_image || '';
         if (img && img.startsWith('http')) {
           ogImage = img;
@@ -52,7 +49,19 @@ export default async function handler(req: any, res: any) {
     }
   }
 
-  // ── Build self-contained HTML ──
+  return sendOgHtml(res, { ogTitle, ogDescription, ogImage, ogUrl, spaRedirect });
+}
+
+// ── Shared HTML builder ──
+function sendOgHtml(res: any, opts: {
+  ogTitle: string;
+  ogDescription: string;
+  ogImage: string;
+  ogUrl: string;
+  spaRedirect: string;
+}) {
+  const { ogTitle, ogDescription, ogImage, ogUrl, spaRedirect } = opts;
+
   const imageTags = ogImage
     ? `<meta property="og:image" content="${esc(ogImage)}" />
     <meta property="og:image:width" content="1200" />
@@ -80,9 +89,9 @@ export default async function handler(req: any, res: any) {
   <meta name="twitter:title" content="${esc(ogTitle)}" />
   <meta name="twitter:description" content="${esc(ogDescription)}" />
 
-  <!-- Redirect real browsers to the SPA (crawlers ignore JS) -->
-  <script>location.replace("/dp/${esc(slug)}?_spa=1")</script>
-  <noscript><meta http-equiv="refresh" content="0;url=/dp/${esc(slug)}?_spa=1" /></noscript>
+  <!-- Redirect real browsers to the SPA -->
+  <script>location.replace("${spaRedirect}")</script>
+  <noscript><meta http-equiv="refresh" content="0;url=${spaRedirect}" /></noscript>
 </head>
 <body></body>
 </html>`;
