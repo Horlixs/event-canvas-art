@@ -8,7 +8,7 @@ import {
   ChevronLeft, Copy, ExternalLink, Loader2, Eye, Download,
   Share2, Calendar, Layers, Clock, Link2, BarChart3,
   ArrowUpRight, Globe2, MousePointerClick, TrendingUp, Image as ImageIcon,
-  Trash2, QrCode
+  Trash2, QrCode, Pencil
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
@@ -162,6 +162,15 @@ const TemplateDetail: React.FC = () => {
               <Share2 size={13} />
               <span className="hidden sm:inline">Share</span>
             </button>
+            {isOwner && (
+              <Link
+                to={`/edit/${template.slug}`}
+                className="h-8 px-3 rounded-full bg-black/[0.03] dark:bg-white/[0.05] hover:bg-black/[0.06] dark:hover:bg-white/[0.08] text-[12px] font-medium flex items-center gap-1.5 transition-all active:scale-95"
+              >
+                <Pencil size={13} />
+                <span className="hidden sm:inline">Edit</span>
+              </Link>
+            )}
             <Link
               to={`/dp/${template.custom_slug || template.slug}`}
               className="h-8 px-3 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[12px] font-semibold flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
@@ -398,6 +407,22 @@ const TemplateDetail: React.FC = () => {
               Quick Actions
             </h3>
             <div className="space-y-2.5">
+              {isOwner && (
+                <Link
+                  to={`/edit/${template.slug}`}
+                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] hover:border-amber-500/20 hover:bg-amber-500/[0.02] transition-all active:scale-[0.98] group"
+                >
+                  <div className="w-9 h-9 rounded-lg bg-amber-500/10 flex items-center justify-center shrink-0">
+                    <Pencil size={16} className="text-amber-500" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[13px] font-semibold">Edit Template</p>
+                    <p className="text-[11px] text-[#86868b] truncate">Modify design, elements & settings</p>
+                  </div>
+                  <ArrowUpRight size={14} className="text-[#86868b] group-hover:text-amber-500 transition-colors shrink-0" />
+                </Link>
+              )}
+
               <Link
                 to={`/dp/${template.custom_slug || template.slug}`}
                 className="w-full flex items-center gap-3 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] hover:border-blue-500/20 hover:bg-blue-500/[0.02] transition-all active:scale-[0.98] group"

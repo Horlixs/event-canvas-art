@@ -35,6 +35,7 @@ const App = () => {
             
             {/* Create New Designs */}
             <Route path="/create" element={<Index />} />
+            <Route path="/edit/:slug" element={<Index />} />
 
             {/* User Dashboard */}
             <Route path="/dashboard" element={<Dashboard />} />

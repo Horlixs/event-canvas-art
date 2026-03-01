@@ -1,6 +1,6 @@
 import React, { useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import Konva from 'konva';
-import { Link } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useCanvas } from '@/hooks/useCanvas';
 import { useAuth } from '@/hooks/useAuth';
 import { CanvasStage } from './CanvasStage';
@@ -14,7 +14,7 @@ import {
   Trash2, ChevronLeft, ChevronUp, ChevronDown, MousePointer2, PanelRight,
   Upload, Sparkles, Loader2, Pencil, Link2, GripVertical, Undo2, Redo2
 } from 'lucide-react';
-import { publishTemplate, updateTemplateSlug } from '@/lib/templates';
+import { publishTemplate, updateExistingTemplate, updateTemplateSlug, getTemplateBySlug } from '@/lib/templates';
 import { compressImage } from '@/lib/imageUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Button } from '@/components/ui/button';
@@ -95,9 +95,14 @@ const LayerItem: React.FC<{
 };
 
 export const Editor: React.FC = () => {
+  const { slug: editSlug } = useParams<{ slug?: string }>();
+  const navigate = useNavigate();
   const stageRef = useRef<Konva.Stage>(null);
   const viewportRef = useRef<HTMLDivElement>(null);
   const bgImageInputRef = useRef<HTMLInputElement>(null);
+  const [editingSlug, setEditingSlug] = useState<string | null>(null);
+  const [editCustomSlug, setEditCustomSlug] = useState<string | null>(null);
+  const templateLoaded = useRef(false);
   
   const [camera, setCamera] = useState({ x: 0, y: 0, z: 1 });
   const [isPanning, setIsPanning] = useState(false);
@@ -159,7 +164,39 @@ export const Editor: React.FC = () => {
     templateName, setTemplateName, registrationLink, setRegistrationLink,
     eventName, setEventName,
     undo, redo, canUndo, canRedo,
+    importTemplate, clearSavedState,
   } = useCanvas();
+
+  // Load template for editing when editSlug is present
+  useEffect(() => {
+    if (!editSlug || templateLoaded.current) return;
+    templateLoaded.current = true;
+    const loadTemplate = async () => {
+      const data = await getTemplateBySlug(editSlug);
+      if (data) {
+        clearSavedState();
+        importTemplate({
+          elements: data.elements,
+          backgroundColor: data.backgroundColor,
+          backgroundImage: data.backgroundImage,
+          width: data.width,
+          height: data.height,
+          name: data.name,
+          registrationLink: data.registrationLink,
+          eventName: data.eventName,
+        });
+        setEditingSlug(data.slug);
+        // Preserve custom slug info for re-publish
+        setOriginalSlug(data.slug);
+        setPublishedSlug(data.slug);
+        setTimeout(fitToScreen, 200);
+      } else {
+        toast.error('Template not found');
+        navigate('/dashboard');
+      }
+    };
+    loadTemplate();
+  }, [editSlug]);
 
   const selectedElement = getSelectedElement();
   const reversedElements = useMemo(() => [...elements].reverse(), [elements]);
@@ -271,20 +308,31 @@ export const Editor: React.FC = () => {
       if (overrides?.registrationLink !== undefined) tpl.registrationLink = overrides.registrationLink || undefined;
       if (overrides?.eventName !== undefined) (tpl as any).eventName = overrides.eventName || undefined;
       const creatorName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || undefined;
-      const result = await publishTemplate(tpl, userId, creatorName);
+
+      let result: { slug: string } | null;
+      if (editingSlug) {
+        // Update existing template
+        result = await updateExistingTemplate(editingSlug, tpl, userId, creatorName);
+      } else {
+        // Create new template
+        result = await publishTemplate(tpl, userId, creatorName);
+      }
       if (result) {
+        setEditingSlug(result.slug);
         setOriginalSlug(result.slug);
         setPublishedSlug(result.slug);
-        setCustomSlug('');
-        setSavedCustomSlug(null);
+        if (!editingSlug) {
+          setCustomSlug('');
+          setSavedCustomSlug(null);
+        }
         setPublishedUrl(`${window.location.origin}/dp/${result.slug}`);
-        toast.success('Published successfully!');
+        toast.success(editingSlug ? 'Template updated!' : 'Published successfully!');
       } else {
         toast.error('Publish failed. Please try again.');
       }
     } catch { toast.error('Publish failed. Please try again.'); } 
     finally { setIsPublishing(false); }
-  }, [exportTemplate, user]);
+  }, [exportTemplate, user, editingSlug]);
 
   const startPublishWizard = useCallback(() => {
     setPublishName(templateName);
@@ -429,7 +477,7 @@ export const Editor: React.FC = () => {
             disabled={isPublishing} 
             className="h-8 bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
           >
-            {isPublishing ? 'Publishing...' : 'Publish'}
+            {isPublishing ? (editingSlug ? 'Updating...' : 'Publishing...') : (editingSlug ? 'Update' : 'Publish')}
           </Button>
         </div>
       </header>
@@ -726,6 +774,7 @@ export const Editor: React.FC = () => {
         if (!file) return;
         try {
           setUploadProgress(0);
+          const isReplace = !!backgroundImage;
           const { dataUrl, width, height } = await compressImage(file, {
             maxWidth: 2048,
             maxHeight: 2048,
@@ -740,6 +789,7 @@ export const Editor: React.FC = () => {
           toast.error('Failed to process image. Try a smaller file.');
         } finally {
           setUploadProgress(null);
+          e.target.value = '';
         }
       }} />
 
@@ -973,7 +1023,7 @@ export const Editor: React.FC = () => {
                 {/* Done button */}
                 <button 
                   onClick={() => { setPublishedUrl(null); setIsEditingSlug(false); }}
-                  className="w-full py-3 text-[13px] font-semibold text-[#86868b] hover:text-[#ffffff] dark:hover:text-[#f5f5f7] transition-colors active:scale-[0.98] rounded-2xl hover:bg-black dark:hover:bg-white"
+                  className="w-full py-3 text-[13px] font-semibold text-[#86868b] hover:text-[#ffffff] dark:hover:text-[#000000] transition-colors active:scale-[0.98] rounded-2xl hover:bg-black dark:hover:bg-white"
                 >
                   Done
                 </button>

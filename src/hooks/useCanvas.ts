@@ -226,10 +226,14 @@ export const useCanvas = () => {
     eventName: eventName || undefined,
   }), [elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName]);
 
-  const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null }) => {
+  const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null; width?: number; height?: number; name?: string; registrationLink?: string; eventName?: string }) => {
     setElements(template.elements);
     if (template.backgroundColor) setBackgroundColor(template.backgroundColor);
     if (template.backgroundImage !== undefined) setBackgroundImage(template.backgroundImage);
+    if (template.width && template.height) setCanvasSize({ width: template.width, height: template.height });
+    if (template.name) setTemplateName(template.name);
+    if (template.registrationLink !== undefined) setRegistrationLink(template.registrationLink || '');
+    if (template.eventName !== undefined) setEventName(template.eventName || '');
     setSelectedId(null);
   }, []);
 

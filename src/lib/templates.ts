@@ -52,6 +52,39 @@ export const publishTemplate = async (
   return { slug };
 };
 
+export const updateExistingTemplate = async (
+  slug: string,
+  template: Omit<TemplateData, 'id' | 'slug'>,
+  userId: string,
+  creatorName?: string
+): Promise<{ slug: string } | null> => {
+  const updateRow = {
+    name: template.name || 'Untitled Template',
+    elements: template.elements as unknown as Json,
+    background_color: template.backgroundColor,
+    background_image: template.backgroundImage || null,
+    canvas_width: template.width,
+    canvas_height: template.height,
+    registration_link: template.registrationLink || null,
+    event_name: (template as any).eventName || null,
+    creator_name: creatorName || null,
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error } = await (supabase
+    .from('templates')
+    .update(updateRow as any)
+    .eq('slug', slug) as any)
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('Error updating template:', error);
+    return null;
+  }
+
+  return { slug };
+};
+
 export const updateTemplateSlug = async (
   originalSlug: string,
   newCustomSlug: string,
