@@ -94,15 +94,16 @@ export const updateTemplateSlug = async (
   const sanitized = newCustomSlug.toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 30);
   if (sanitized.length < 3) return null;
 
-  // Check availability against both slug and custom_slug columns
-  const { data: existing } = await supabase
+  // Check availability against both slug and custom_slug columns,
+  // excluding the current template so it can keep/re-save its own custom_slug
+  const { data: conflict } = await (supabase
     .from('templates')
-    .select('id, slug')
-    .or(`slug.eq.${sanitized},custom_slug.eq.${sanitized}`)
+    .select('id')
+    .or(`slug.eq.${sanitized},custom_slug.eq.${sanitized}`) as any)
+    .neq('slug', originalSlug)
     .maybeSingle();
 
-  // Allow if the match is the same template (same originalSlug)
-  if (existing && (existing as any).slug !== originalSlug) return null; // slug taken
+  if (conflict) return null; // slug taken by another template
 
   const query = supabase
     .from('templates')
