@@ -28,6 +28,7 @@ import useImage from 'use-image';
 import { ImageCropper } from './ImageCropper';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { wrapText } from '@/lib/textUtils';
 
 // --- HELPER: Background Image ---
 const BackgroundImage: React.FC<{ src: string; width: number; height: number }> = ({ src, width, height }) => {
@@ -171,13 +172,16 @@ const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({
         y={element.y}
         rotation={element.rotation}
         opacity={element.opacity ?? 1}
-        clipX={-element.width / 2}
-        clipY={0}
-        clipWidth={element.width}
-        clipHeight={element.fontSize * 100}
       >
         <Text
-          text={element.text}
+          text={wrapText(
+            element.text,
+            element.width,
+            element.fontSize,
+            element.fontFamily,
+            element.fontWeight || 400,
+            element.fontStyle || 'normal',
+          )}
           width={element.width}
           offsetX={element.width / 2}
           fontSize={element.fontSize}
@@ -187,7 +191,7 @@ const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({
           stroke={element.stroke || ''}
           strokeWidth={element.strokeWidth || 0}
           align={element.textAlign || 'center'}
-          wrap="word"
+          wrap="none"
         />
       </Group>
     );

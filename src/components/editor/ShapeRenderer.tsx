@@ -2,6 +2,7 @@ import React from 'react';
 import { Group, Rect, Circle, Line, Text, Image as KonvaImage } from 'react-konva';
 import Konva from 'konva';
 import useImage from 'use-image';
+import { wrapText } from '@/lib/textUtils';
 
 export const ShapeRenderer: React.FC<any> = ({
   element, isSelected, onSelect, onChange, userImage, isGeneratorMode = false,
@@ -122,26 +123,26 @@ export const ShapeRenderer: React.FC<any> = ({
       })()}
 
       {element.type === 'text' && (
-        <Group
-          clipX={-element.width / 2}
-          clipY={0}
-          clipWidth={element.width}
-          clipHeight={element.fontSize * 100}
-        >
-          <Text
-            text={element.text}
-            fontSize={element.fontSize}
-            fontFamily={element.fontFamily || 'Inter'}
-            fill={element.fill}
-            stroke={element.stroke || ''}
-            strokeWidth={element.strokeWidth || 0}
-            align={element.textAlign || 'center'}
-            width={element.width}
-            offsetX={element.width / 2}
-            fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
-            wrap="word"
-          />
-        </Group>
+        <Text
+          text={wrapText(
+            element.text,
+            element.width,
+            element.fontSize,
+            element.fontFamily || 'Inter',
+            element.fontWeight || 400,
+            element.fontStyle || 'normal',
+          )}
+          fontSize={element.fontSize}
+          fontFamily={element.fontFamily || 'Inter'}
+          fill={element.fill}
+          stroke={element.stroke || ''}
+          strokeWidth={element.strokeWidth || 0}
+          align={element.textAlign || 'center'}
+          width={element.width}
+          offsetX={element.width / 2}
+          fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
+          wrap="none"
+        />
       )}
 
       {element.type === 'image' && (
