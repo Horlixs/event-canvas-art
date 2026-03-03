@@ -128,6 +128,7 @@ export const Editor: React.FC = () => {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [publishStep, setPublishStep] = useState<null | 'name' | 'registration'>(null);
+  const [publishMode, setPublishMode] = useState<'new' | 'publish-as-new'>('new');
   const [publishName, setPublishName] = useState('');
   const [hasRegLink, setHasRegLink] = useState(false);
   const [regLinkInput, setRegLinkInput] = useState('');
@@ -370,7 +371,8 @@ export const Editor: React.FC = () => {
     finally { setIsPublishing(false); }
   }, [exportTemplate, user, navigate]);
 
-  const startPublishWizard = useCallback(() => {
+  const startPublishWizard = useCallback((mode: 'new' | 'publish-as-new' = 'new') => {
+    setPublishMode(mode);
     setPublishName(templateName);
     setRegLinkInput(registrationLink || '');
     setHasRegLink(!!registrationLink);
@@ -385,8 +387,28 @@ export const Editor: React.FC = () => {
       setShowAuthModal(true);
       return;
     }
-    startPublishWizard();
+    startPublishWizard('new');
   }, [elements, user, startPublishWizard]);
+
+  const handlePublishAsNew = useCallback(async () => {
+    if (elements.length === 0) return toast.error('Canvas is empty. Add elements first.');
+    if (!user) {
+      pendingPublishRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    startPublishWizard('publish-as-new');
+  }, [elements, user, startPublishWizard]);
+
+  const handleDirectUpdate = useCallback(async () => {
+    if (elements.length === 0) return toast.error('Canvas is empty. Add elements first.');
+    if (!user) {
+      pendingPublishRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    doPublish(user.id);
+  }, [elements, user, doPublish]);
 
   const handlePublishConfirm = useCallback(() => {
     if (!user) return;
@@ -522,13 +544,34 @@ export const Editor: React.FC = () => {
 
           <div className="w-px h-4 bg-black/[0.08] dark:bg-white/[0.08] hidden md:block" />
           
-          <Button 
-            onClick={handlePublish} 
-            disabled={isPublishing} 
-            className="h-8 bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
-          >
-            {isPublishing ? (editingSlug ? 'Updating...' : 'Publishing...') : (editingSlug ? 'Update' : 'Publish')}
-          </Button>
+          {editingSlug ? (
+            <div className="flex items-center gap-1.5">
+              <Button
+                onClick={handlePublishAsNew}
+                disabled={isPublishing}
+                className="h-8 bg-transparent hover:bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/30 text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all active:scale-95"
+              >
+                <CopyPlus size={13} className="mr-1" />
+                <span className="hidden sm:inline">Publish New</span>
+                <span className="sm:hidden">New</span>
+              </Button>
+              <Button 
+                onClick={handleDirectUpdate} 
+                disabled={isPublishing} 
+                className="h-8 bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+              >
+                {isPublishing ? 'Updating...' : 'Update'}
+              </Button>
+            </div>
+          ) : (
+            <Button 
+              onClick={handlePublish} 
+              disabled={isPublishing} 
+              className="h-8 bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+            >
+              {isPublishing ? 'Publishing...' : 'Publish'}
+            </Button>
+          )}
         </div>
       </header>
 
@@ -1255,36 +1298,14 @@ export const Editor: React.FC = () => {
                       >
                         Back
                       </button>
-                      {editingSlug ? (
-                        <>
-                          <button
-                            disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
-                            onClick={handlePublishAsNewConfirm}
-                            className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-[#0071e3] bg-[#0071e3]/10 hover:bg-[#0071e3]/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
-                            title="Save as a brand new template without changing the original"
-                          >
-                            {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <CopyPlus size={15} />}
-                            Publish New
-                          </button>
-                          <button
-                            disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
-                            onClick={handlePublishConfirm}
-                            className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
-                          >
-                            {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-                            Update
-                          </button>
-                        </>
-                      ) : (
-                        <button
-                          disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
-                          onClick={handlePublishConfirm}
-                          className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
-                        >
-                          {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-                          {isPublishing ? 'Publishing...' : 'Publish'}
-                        </button>
-                      )}
+                      <button
+                        disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
+                        onClick={publishMode === 'publish-as-new' ? handlePublishAsNewConfirm : handlePublishConfirm}
+                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                      >
+                        {isPublishing ? <Loader2 size={15} className="animate-spin" /> : (publishMode === 'publish-as-new' ? <CopyPlus size={15} /> : <Upload size={15} />)}
+                        {isPublishing ? 'Publishing...' : (publishMode === 'publish-as-new' ? 'Publish as New' : 'Publish')}
+                      </button>
                     </div>
                   </motion.div>
                 )}

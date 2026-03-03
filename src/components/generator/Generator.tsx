@@ -178,6 +178,7 @@ const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({
           stroke={element.stroke || ''}
           strokeWidth={element.strokeWidth || 0}
           align={element.textAlign || 'center'}
+          wrap="char"
         />
       </Group>
     );

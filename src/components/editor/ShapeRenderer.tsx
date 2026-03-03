@@ -133,6 +133,7 @@ export const ShapeRenderer: React.FC<any> = ({
           width={element.width}
           offsetX={element.width / 2}
           fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
+          wrap="char"
         />
       )}
 
