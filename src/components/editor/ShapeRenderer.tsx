@@ -122,19 +122,26 @@ export const ShapeRenderer: React.FC<any> = ({
       })()}
 
       {element.type === 'text' && (
-        <Text
-          text={element.text}
-          fontSize={element.fontSize}
-          fontFamily={element.fontFamily || 'Inter'}
-          fill={element.fill}
-          stroke={element.stroke || ''}
-          strokeWidth={element.strokeWidth || 0}
-          align={element.textAlign || 'center'}
-          width={element.width}
-          offsetX={element.width / 2}
-          fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
-          wrap="word"
-        />
+        <Group
+          clipX={-element.width / 2}
+          clipY={0}
+          clipWidth={element.width}
+          clipHeight={element.fontSize * 100}
+        >
+          <Text
+            text={element.text}
+            fontSize={element.fontSize}
+            fontFamily={element.fontFamily || 'Inter'}
+            fill={element.fill}
+            stroke={element.stroke || ''}
+            strokeWidth={element.strokeWidth || 0}
+            align={element.textAlign || 'center'}
+            width={element.width}
+            offsetX={element.width / 2}
+            fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
+            wrap="word"
+          />
+        </Group>
       )}
 
       {element.type === 'image' && (

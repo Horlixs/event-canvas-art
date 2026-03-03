@@ -166,7 +166,16 @@ const WatermarkLogo: React.FC<{ width: number; height: number }> = ({ width, hei
 const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({ element, userImage }) => {
   if (element.type === 'text') {
     return (
-      <Group x={element.x} y={element.y} rotation={element.rotation} opacity={element.opacity ?? 1}>
+      <Group
+        x={element.x}
+        y={element.y}
+        rotation={element.rotation}
+        opacity={element.opacity ?? 1}
+        clipX={-element.width / 2}
+        clipY={0}
+        clipWidth={element.width}
+        clipHeight={element.fontSize * 100}
+      >
         <Text
           text={element.text}
           width={element.width}
