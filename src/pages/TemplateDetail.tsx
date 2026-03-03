@@ -77,7 +77,7 @@ const TemplateDetail: React.FC = () => {
     }
     if (navigator.share) {
       try {
-        await navigator.share({ title: template?.name || 'Check out this design', url: generatorUrl });
+        await navigator.share({ title: template?.name || 'Check out this template', url: generatorUrl });
       } catch { /* user cancelled */ }
     } else {
       navigator.clipboard.writeText(generatorUrl);

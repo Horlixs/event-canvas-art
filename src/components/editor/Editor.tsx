@@ -1173,7 +1173,7 @@ export const Editor: React.FC = () => {
                         <Pencil size={22} className="text-[#0071e3]" />
                       </div>
                       <h2 className="text-[20px] font-bold tracking-tight">Name your template</h2>
-                      <p className="text-[13px] text-[#86868b] leading-relaxed">Give your design a memorable name</p>
+                      <p className="text-[13px] text-[#86868b] leading-relaxed">Give your template a memorable name</p>
                     </div>
 
                     <div className="space-y-2">

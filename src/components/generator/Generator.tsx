@@ -351,12 +351,12 @@ const GeneratorError: React.FC<{ error: string }> = ({ error }) => (
           className="space-y-2"
         >
           <h1 className="text-[22px] sm:text-2xl font-bold tracking-tight text-[#1d1d1f] dark:text-[#f5f5f7]">
-            Design Not Found
+            Template Not Found
           </h1>
           <p className="text-[14px] text-[#86868b] leading-relaxed max-w-[280px] mx-auto">
             {error === 'Template not found' 
-              ? "This design may have been removed or the link might be incorrect." 
-              : error || "Something went wrong loading this design."}
+              ? "This template may have been removed or the link might be incorrect." 
+              : error || "Something went wrong loading this template."}
           </p>
         </motion.div>
 
@@ -515,7 +515,7 @@ export const Generator: React.FC = () => {
     toast.success('Photo applied!');
   }, [currentCroppingId]);
 
-  const SITE_NAME = 'EventDP';
+  const SITE_NAME = 'Dummy';
   const SITE_URL = window.location.origin;
 
   const handleDownload = useCallback(() => {
@@ -566,7 +566,7 @@ export const Generator: React.FC = () => {
     const shareUrl = window.location.href;
     if (navigator.share) {
       try {
-        await navigator.share({ title: template?.name || 'Check out this design', url: shareUrl });
+        await navigator.share({ title: template?.name || 'Check out this template', url: shareUrl });
         if (slug) incrementTemplateStat(slug, 'shares').catch(() => {});
       } catch { /* user cancelled */ }
     } else {
@@ -592,7 +592,7 @@ export const Generator: React.FC = () => {
             <ChevronLeft size={18} className="text-[#86868b]" />
           </Link>
           <div className="min-w-0">
-            <h1 className="text-[13px] font-semibold truncate">{template.name || 'Untitled Design'}</h1>
+            <h1 className="text-[13px] font-semibold truncate">{template.name || 'Untitled Template'}</h1>
           </div>
         </div>
         <div className="flex items-center gap-1.5">

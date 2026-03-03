@@ -354,7 +354,7 @@ const Dashboard: React.FC = () => {
               <div className="flex items-center justify-between mb-4">
                 <h2 className="text-[15px] font-bold flex items-center gap-2">
                   <LayoutGrid size={16} className="text-[#86868b]" />
-                  Your Designs
+                  Your Templates
                 </h2>
                 <span className="text-[12px] text-[#86868b] font-medium">
                   Since {firstDate}

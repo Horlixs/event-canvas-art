@@ -77,7 +77,7 @@ const Explore = () => {
           transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
           className="mb-10"
         >
-          <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-3">Explore Campaigns</h1>
+          <h1 className="text-3xl md:text-5xl font-bold tracking-tight mb-3">Explore Templates</h1>
           <p className="text-[15px] text-[#86868b] max-w-lg">
             Browse community templates and generate your personalized DP in seconds.
           </p>
