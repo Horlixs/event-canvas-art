@@ -12,7 +12,7 @@ import {
   ImagePlus, Layers, ZoomIn, ZoomOut, 
   Grid, Eye, Check, Maximize, 
   Trash2, ChevronLeft, ChevronUp, ChevronDown, MousePointer2, PanelRight,
-  Upload, Sparkles, Loader2, Pencil, Link2, GripVertical, Undo2, Redo2
+  Upload, Sparkles, Loader2, Pencil, Link2, GripVertical, Undo2, Redo2, CopyPlus
 } from 'lucide-react';
 import { publishTemplate, updateExistingTemplate, updateTemplateSlug, getTemplateBySlug } from '@/lib/templates';
 import { compressImage } from '@/lib/imageUtils';
@@ -340,6 +340,36 @@ export const Editor: React.FC = () => {
     finally { setIsPublishing(false); }
   }, [exportTemplate, user, editingSlug]);
 
+  const doPublishAsNew = useCallback(async (userId: string, overrides?: { name?: string; registrationLink?: string; eventName?: string }) => {
+    setIsPublishing(true);
+    try {
+      const tpl = exportTemplate();
+      if (overrides?.name) tpl.name = overrides.name;
+      if (overrides?.registrationLink !== undefined) tpl.registrationLink = overrides.registrationLink || undefined;
+      if (overrides?.eventName !== undefined) (tpl as any).eventName = overrides.eventName || undefined;
+      const creatorName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || undefined;
+
+      // Always create a new template
+      const result = await publishTemplate(tpl, userId, creatorName);
+      if (result) {
+        // Switch editor to the new template
+        setEditingSlug(result.slug);
+        setOriginalSlug(result.slug);
+        setPublishedSlug(result.slug);
+        setCustomSlug('');
+        setSavedCustomSlug(null);
+        setEditCustomSlug(null);
+        setPublishedUrl(`${window.location.origin}/dp/${result.slug}`);
+        toast.success('Published as a new template!');
+        // Update URL to reflect the new template
+        navigate(`/editor/${result.slug}`, { replace: true });
+      } else {
+        toast.error('Publish failed. Please try again.');
+      }
+    } catch { toast.error('Publish failed. Please try again.'); }
+    finally { setIsPublishing(false); }
+  }, [exportTemplate, user, navigate]);
+
   const startPublishWizard = useCallback(() => {
     setPublishName(templateName);
     setRegLinkInput(registrationLink || '');
@@ -371,6 +401,20 @@ export const Editor: React.FC = () => {
     // Publish with overrides (bypasses stale state)
     doPublish(user.id, { name: finalName, registrationLink: finalLink, eventName: finalEventName });
   }, [user, publishName, hasRegLink, regLinkInput, eventNameInput, doPublish, setTemplateName, setRegistrationLink, setEventName]);
+
+  const handlePublishAsNewConfirm = useCallback(() => {
+    if (!user) return;
+    const finalName = publishName.trim();
+    const finalLink = hasRegLink ? regLinkInput.trim() : '';
+    const finalEventName = hasRegLink ? eventNameInput.trim() : '';
+    // Update editor state for future edits
+    setTemplateName(finalName);
+    setRegistrationLink(finalLink);
+    setEventName(finalEventName);
+    setPublishStep(null);
+    // Publish as a brand new template
+    doPublishAsNew(user.id, { name: finalName, registrationLink: finalLink, eventName: finalEventName });
+  }, [user, publishName, hasRegLink, regLinkInput, eventNameInput, doPublishAsNew, setTemplateName, setRegistrationLink, setEventName]);
 
   // After successful login, show the publish wizard
   useEffect(() => {
@@ -1211,14 +1255,36 @@ export const Editor: React.FC = () => {
                       >
                         Back
                       </button>
-                      <button
-                        disabled={hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())}
-                        onClick={handlePublishConfirm}
-                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
-                      >
-                        {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
-                        {isPublishing ? 'Publishing...' : 'Publish'}
-                      </button>
+                      {editingSlug ? (
+                        <>
+                          <button
+                            disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
+                            onClick={handlePublishAsNewConfirm}
+                            className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-[#0071e3] bg-[#0071e3]/10 hover:bg-[#0071e3]/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                            title="Save as a brand new template without changing the original"
+                          >
+                            {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <CopyPlus size={15} />}
+                            Publish New
+                          </button>
+                          <button
+                            disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
+                            onClick={handlePublishConfirm}
+                            className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                          >
+                            {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                            Update
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
+                          onClick={handlePublishConfirm}
+                          className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                        >
+                          {isPublishing ? <Loader2 size={15} className="animate-spin" /> : <Upload size={15} />}
+                          {isPublishing ? 'Publishing...' : 'Publish'}
+                        </button>
+                      )}
                     </div>
                   </motion.div>
                 )}
