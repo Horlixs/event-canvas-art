@@ -165,7 +165,12 @@ const SignIn: React.FC = () => {
           </form>
 
           {/* Footer */}
-          <div className="px-6 pb-6 text-center">
+          <div className="px-6 pb-6 space-y-2 text-center">
+            <p className="text-[13px] text-[#86868b]">
+              <Link to="/forgot-password" className="text-[#0071e3] hover:underline font-medium">
+                Forgot your password?
+              </Link>
+            </p>
             <p className="text-[13px] text-[#86868b]">
               Don't have an account?{' '}
               <Link to="/signup" className="text-[#0071e3] hover:underline font-medium">

@@ -29,6 +29,8 @@ import { ImageCropper } from './ImageCropper';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { wrapText } from '@/lib/textUtils';
+import { useAuth } from '@/hooks/useAuth';
+import { AuthModal } from '@/components/AuthModal';
 
 // --- HELPER: Background Image ---
 const BackgroundImage: React.FC<{ src: string; width: number; height: number }> = ({ src, width, height }) => {
@@ -515,10 +517,24 @@ export const Generator: React.FC = () => {
     toast.success('Photo applied!');
   }, [currentCroppingId]);
 
+  const { user } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const pendingDownloadRef = useRef(false);
+
+  // When user signs in via auth modal, auto-trigger download
+  useEffect(() => {
+    if (user && pendingDownloadRef.current) {
+      pendingDownloadRef.current = false;
+      setShowAuthModal(false);
+      // Small delay to let modal close
+      setTimeout(() => performDownload(), 300);
+    }
+  }, [user]);
+
   const SITE_NAME = 'Dummy';
   const SITE_URL = window.location.origin;
 
-  const handleDownload = useCallback(() => {
+  const performDownload = useCallback(() => {
     if (!stageRef.current) return;
     try {
       const uri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
@@ -561,6 +577,15 @@ export const Generator: React.FC = () => {
       toast.error('Could not generate image.');
     }
   }, [slug, template, elements]);
+
+  const handleDownload = useCallback(() => {
+    if (!user) {
+      pendingDownloadRef.current = true;
+      setShowAuthModal(true);
+      return;
+    }
+    performDownload();
+  }, [user, performDownload]);
 
   const handleShare = useCallback(async () => {
     const shareUrl = window.location.href;
@@ -793,6 +818,16 @@ export const Generator: React.FC = () => {
           />
         )}
       </AnimatePresence>
+
+      {/* AUTH MODAL — gate downloads behind sign-in */}
+      <AuthModal
+        open={showAuthModal}
+        onClose={() => {
+          setShowAuthModal(false);
+          pendingDownloadRef.current = false;
+        }}
+        message="Sign in to download your design"
+      />
 
       {/* REGISTRATION / EVENT POPUP — shown after download */}
       <AnimatePresence>

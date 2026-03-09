@@ -58,7 +58,26 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      check_email_exists_for_other_user: {
+        Args: {
+          check_email: string
+          exclude_user_id: string
+        }
+        Returns: string | null
+      }
+      cleanup_duplicate_user: {
+        Args: {
+          target_user_id: string
+          target_email: string
+        }
+        Returns: boolean
+      }
+      get_provider_for_email: {
+        Args: {
+          lookup_email: string
+        }
+        Returns: string | null
+      }
     }
     Enums: {
       [_ in never]: never

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
@@ -228,6 +229,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab 
                 Continue with Google
               </button>
             </form>
+
+            {/* Forgot password */}
+            {tab === 'login' && (
+              <div className="px-5 pb-4 text-center">
+                <Link
+                  to="/forgot-password"
+                  onClick={onClose}
+                  className="text-[12px] text-[#0071e3] hover:underline font-medium"
+                >
+                  Forgot your password?
+                </Link>
+              </div>
+            )}
 
             {/* Safe area padding */}
             <div className="safe-bottom" />
