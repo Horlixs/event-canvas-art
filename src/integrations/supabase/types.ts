@@ -21,11 +21,20 @@ export type Database = {
           canvas_height: number
           canvas_width: number
           created_at: string
+          creator_name: string | null
+          custom_slug: string | null
+          downloads: number
           elements: Json
+          event_name: string | null
           id: string
+          is_private: boolean
           name: string
+          registration_link: string | null
+          shares: number
           slug: string
           updated_at: string
+          user_id: string | null
+          views: number
         }
         Insert: {
           background_color?: string
@@ -33,11 +42,20 @@ export type Database = {
           canvas_height?: number
           canvas_width?: number
           created_at?: string
+          creator_name?: string | null
+          custom_slug?: string | null
+          downloads?: number
           elements?: Json
+          event_name?: string | null
           id?: string
+          is_private?: boolean
           name?: string
+          registration_link?: string | null
+          shares?: number
           slug: string
           updated_at?: string
+          user_id?: string | null
+          views?: number
         }
         Update: {
           background_color?: string
@@ -45,11 +63,20 @@ export type Database = {
           canvas_height?: number
           canvas_width?: number
           created_at?: string
+          creator_name?: string | null
+          custom_slug?: string | null
+          downloads?: number
           elements?: Json
+          event_name?: string | null
           id?: string
+          is_private?: boolean
           name?: string
+          registration_link?: string | null
+          shares?: number
           slug?: string
           updated_at?: string
+          user_id?: string | null
+          views?: number
         }
         Relationships: []
       }

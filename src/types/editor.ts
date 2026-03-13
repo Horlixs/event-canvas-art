@@ -82,6 +82,7 @@ export interface TemplateData {
   slug: string;
   custom_slug?: string | null;
   name: string;
+  isPrivate?: boolean;
   width: number;
   height: number;
   backgroundColor: string;

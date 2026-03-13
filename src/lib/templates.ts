@@ -28,6 +28,7 @@ export const publishTemplate = async (
     canvas_height: template.height,
     registration_link: template.registrationLink || null,
     event_name: (template as any).eventName || null,
+    is_private: !!template.isPrivate,
     creator_name: creatorName || null,
   };
 
@@ -67,6 +68,7 @@ export const updateExistingTemplate = async (
     canvas_height: template.height,
     registration_link: template.registrationLink || null,
     event_name: (template as any).eventName || null,
+    is_private: !!template.isPrivate,
     creator_name: creatorName || null,
     updated_at: new Date().toISOString(),
   };
@@ -153,6 +155,7 @@ export const getTemplateBySlug = async (slug: string): Promise<TemplateData | nu
     slug: data.slug,
     custom_slug: (data as any).custom_slug || null,
     name: data.name,
+    isPrivate: (data as any).is_private || false,
     width: data.canvas_width,
     height: data.canvas_height,
     elements: data.elements as unknown as CanvasElement[],
@@ -277,6 +280,7 @@ export interface PublicTemplate {
   slug: string;
   custom_slug?: string | null;
   name: string;
+  is_private?: boolean;
   background_color: string;
   background_image: string | null;
   canvas_width: number;
@@ -288,7 +292,7 @@ export interface PublicTemplate {
   creator_name: string | null;
 }
 
-/** Fetch the N most recent public templates (all templates are public once published). */
+/** Fetch the N most recent public templates. */
 export const getRecentTemplates = async (limit = 3): Promise<PublicTemplate[]> => {
   const all = await getAllPublicTemplates();
   return all.slice(0, limit);
@@ -298,7 +302,8 @@ export const getRecentTemplates = async (limit = 3): Promise<PublicTemplate[]> =
 export const getAllPublicTemplates = async (): Promise<PublicTemplate[]> => {
   const { data, error } = await supabase
     .from('templates' as any)
-    .select('id, slug, custom_slug, name, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name')
+    .select('id, slug, custom_slug, name, is_private, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name')
+    .eq('is_private', false)
     .order('created_at', { ascending: false }) as unknown as { data: PublicTemplate[] | null; error: any };
 
   if (error || !data) return [];

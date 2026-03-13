@@ -79,7 +79,7 @@ const ForgotPassword: React.FC = () => {
               </div>
               <Link
                 to="/signin"
-                className="w-full py-3 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] text-white text-[14px] font-semibold transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+                className="w-full py-3 rounded-xl bg-[#0842C7] hover:bg-[#0953D7] text-white text-[14px] font-semibold transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 <ArrowLeft size={16} />
                 Back to Sign In
@@ -110,7 +110,7 @@ const ForgotPassword: React.FC = () => {
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] text-white text-[14px] font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98]"
+                className="w-full py-3 rounded-xl bg-[#0842C7] hover:bg-[#0953D7] text-white text-[14px] font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98]"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
                 Send Reset Link
@@ -122,7 +122,7 @@ const ForgotPassword: React.FC = () => {
           <div className="px-6 pb-6 text-center">
             <p className="text-[13px] text-[#86868b]">
               Remember your password?{' '}
-              <Link to="/signin" className="text-[#0071e3] hover:underline font-medium">
+              <Link to="/signin" className="text-[#0842C7] hover:underline font-medium">
                 Sign In
               </Link>
             </p>

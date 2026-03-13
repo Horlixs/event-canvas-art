@@ -133,6 +133,7 @@ export const Editor: React.FC = () => {
   const [hasRegLink, setHasRegLink] = useState(false);
   const [regLinkInput, setRegLinkInput] = useState('');
   const [eventNameInput, setEventNameInput] = useState('');
+  const [isPrivateInput, setIsPrivateInput] = useState(false);
 
   const { user } = useAuth();
 
@@ -163,7 +164,7 @@ export const Editor: React.FC = () => {
     addElement, updateElement, deleteElement, duplicateElement,
     moveElement, getSelectedElement, clearSelection, exportTemplate,
     templateName, setTemplateName, registrationLink, setRegistrationLink,
-    eventName, setEventName,
+    eventName, setEventName, isPrivate, setIsPrivate,
     undo, redo, canUndo, canRedo,
     importTemplate, clearSavedState,
   } = useCanvas();
@@ -185,6 +186,7 @@ export const Editor: React.FC = () => {
           name: data.name,
           registrationLink: data.registrationLink,
           eventName: data.eventName,
+          isPrivate: data.isPrivate,
         });
         setEditingSlug(data.slug);
         // Preserve custom slug info for re-publish
@@ -306,13 +308,14 @@ export const Editor: React.FC = () => {
 
   const pendingPublishRef = useRef(false);
 
-  const doPublish = useCallback(async (userId: string, overrides?: { name?: string; registrationLink?: string; eventName?: string }) => {
+  const doPublish = useCallback(async (userId: string, overrides?: { name?: string; registrationLink?: string; eventName?: string; isPrivate?: boolean }) => {
     setIsPublishing(true);
     try {
       const tpl = exportTemplate();
       if (overrides?.name) tpl.name = overrides.name;
       if (overrides?.registrationLink !== undefined) tpl.registrationLink = overrides.registrationLink || undefined;
       if (overrides?.eventName !== undefined) (tpl as any).eventName = overrides.eventName || undefined;
+      if (overrides?.isPrivate !== undefined) tpl.isPrivate = overrides.isPrivate;
       const creatorName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || undefined;
 
       let result: { slug: string } | null;
@@ -341,13 +344,14 @@ export const Editor: React.FC = () => {
     finally { setIsPublishing(false); }
   }, [exportTemplate, user, editingSlug]);
 
-  const doPublishAsNew = useCallback(async (userId: string, overrides?: { name?: string; registrationLink?: string; eventName?: string }) => {
+  const doPublishAsNew = useCallback(async (userId: string, overrides?: { name?: string; registrationLink?: string; eventName?: string; isPrivate?: boolean }) => {
     setIsPublishing(true);
     try {
       const tpl = exportTemplate();
       if (overrides?.name) tpl.name = overrides.name;
       if (overrides?.registrationLink !== undefined) tpl.registrationLink = overrides.registrationLink || undefined;
       if (overrides?.eventName !== undefined) (tpl as any).eventName = overrides.eventName || undefined;
+      if (overrides?.isPrivate !== undefined) tpl.isPrivate = overrides.isPrivate;
       const creatorName = user?.user_metadata?.full_name || user?.email?.split('@')[0] || undefined;
 
       // Always create a new template
@@ -377,8 +381,9 @@ export const Editor: React.FC = () => {
     setRegLinkInput(registrationLink || '');
     setHasRegLink(!!registrationLink);
     setEventNameInput(eventName || '');
+    setIsPrivateInput(!!isPrivate);
     setPublishStep('name');
-  }, [templateName, registrationLink, eventName]);
+  }, [templateName, registrationLink, eventName, isPrivate]);
 
   const handlePublish = useCallback(async () => {
     if (elements.length === 0) return toast.error('Canvas is empty. Add elements first.');
@@ -407,36 +412,40 @@ export const Editor: React.FC = () => {
       setShowAuthModal(true);
       return;
     }
-    doPublish(user.id);
-  }, [elements, user, doPublish]);
+    startPublishWizard('new');
+  }, [elements, user, startPublishWizard]);
 
   const handlePublishConfirm = useCallback(() => {
     if (!user) return;
     const finalName = publishName.trim();
     const finalLink = hasRegLink ? regLinkInput.trim() : '';
     const finalEventName = hasRegLink ? eventNameInput.trim() : '';
+    const finalPrivate = isPrivateInput;
     // Update editor state for future edits
     setTemplateName(finalName);
     setRegistrationLink(finalLink);
     setEventName(finalEventName);
+    setIsPrivate(finalPrivate);
     setPublishStep(null);
     // Publish with overrides (bypasses stale state)
-    doPublish(user.id, { name: finalName, registrationLink: finalLink, eventName: finalEventName });
-  }, [user, publishName, hasRegLink, regLinkInput, eventNameInput, doPublish, setTemplateName, setRegistrationLink, setEventName]);
+    doPublish(user.id, { name: finalName, registrationLink: finalLink, eventName: finalEventName, isPrivate: finalPrivate });
+  }, [user, publishName, hasRegLink, regLinkInput, eventNameInput, isPrivateInput, doPublish, setTemplateName, setRegistrationLink, setEventName, setIsPrivate]);
 
   const handlePublishAsNewConfirm = useCallback(() => {
     if (!user) return;
     const finalName = publishName.trim();
     const finalLink = hasRegLink ? regLinkInput.trim() : '';
     const finalEventName = hasRegLink ? eventNameInput.trim() : '';
+    const finalPrivate = isPrivateInput;
     // Update editor state for future edits
     setTemplateName(finalName);
     setRegistrationLink(finalLink);
     setEventName(finalEventName);
+    setIsPrivate(finalPrivate);
     setPublishStep(null);
     // Publish as a brand new template
-    doPublishAsNew(user.id, { name: finalName, registrationLink: finalLink, eventName: finalEventName });
-  }, [user, publishName, hasRegLink, regLinkInput, eventNameInput, doPublishAsNew, setTemplateName, setRegistrationLink, setEventName]);
+    doPublishAsNew(user.id, { name: finalName, registrationLink: finalLink, eventName: finalEventName, isPrivate: finalPrivate });
+  }, [user, publishName, hasRegLink, regLinkInput, eventNameInput, isPrivateInput, doPublishAsNew, setTemplateName, setRegistrationLink, setEventName, setIsPrivate]);
 
   // After successful login, show the publish wizard
   useEffect(() => {
@@ -549,7 +558,7 @@ export const Editor: React.FC = () => {
               <Button
                 onClick={handlePublishAsNew}
                 disabled={isPublishing}
-                className="h-8 bg-transparent hover:bg-[#0071e3]/10 text-[#0071e3] border border-[#0071e3]/30 text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all active:scale-95"
+                className="h-8 bg-transparent hover:bg-[#0842C7]/10 text-[#0842C7] border border-[#0842C7]/30 text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all active:scale-95"
               >
                 <CopyPlus size={13} className="mr-1" />
                 <span className="hidden sm:inline">Publish New</span>
@@ -558,7 +567,7 @@ export const Editor: React.FC = () => {
               <Button 
                 onClick={handleDirectUpdate} 
                 disabled={isPublishing} 
-                className="h-8 bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+                className="h-8 bg-[#0842C7] hover:bg-[#0953D7] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
               >
                 {isPublishing ? 'Updating...' : 'Update'}
               </Button>
@@ -567,7 +576,7 @@ export const Editor: React.FC = () => {
             <Button 
               onClick={handlePublish} 
               disabled={isPublishing} 
-              className="h-8 bg-[#0071e3] hover:bg-[#0077ed] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
+              className="h-8 bg-[#0842C7] hover:bg-[#0953D7] text-white text-[11px] md:text-[12px] px-3 md:px-4 rounded-full font-semibold transition-all shadow-lg shadow-blue-500/20 active:scale-95"
             >
               {isPublishing ? 'Publishing...' : 'Publish'}
             </Button>
@@ -632,7 +641,7 @@ export const Editor: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.2, duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
                 onClick={() => bgImageInputRef.current?.click()}
-                className="pointer-events-auto group flex flex-col items-center gap-5 p-10 md:p-14 rounded-3xl bg-white/70 dark:bg-[#000000] backdrop-blur-2xl border-2 border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#0071e3]/40 dark:hover:border-[#0071e3]/40 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.98] max-w-[90vw]"
+                className="pointer-events-auto group flex flex-col items-center gap-5 p-10 md:p-14 rounded-3xl bg-white/70 dark:bg-[#000000] backdrop-blur-2xl border-2 border-dashed border-black/[0.08] dark:border-white/[0.08] hover:border-[#0842C7]/40 dark:hover:border-[#0842C7]/40 transition-all duration-300 shadow-xl cursor-pointer active:scale-[0.98] max-w-[90vw]"
               >
                 <div className="w-16 h-16 md:w-20 md:h-20 rounded-2xl bg-[#86868b]/15 flex items-center justify-center group-hover:bg-[#86868b]/25 transition-colors">
                   <Upload size={28} className="text-[#000000] dark:text-[#ffffff]" />
@@ -800,6 +809,31 @@ export const Editor: React.FC = () => {
                           </div>
                         )}
 
+                        <div className={cn(
+                          "p-3 rounded-2xl border",
+                          isPrivate ? "bg-amber-500/[0.04] border-amber-500/10" : "bg-blue-500/[0.04] border-blue-500/10"
+                        )}>
+                          <div className="flex items-center justify-between gap-3">
+                            <div>
+                              <p className={cn(
+                                "text-[10px] font-bold uppercase tracking-[0.1em]",
+                                isPrivate ? "text-amber-600 dark:text-amber-400" : "text-blue-600 dark:text-blue-400"
+                              )}>
+                                Template Visibility
+                              </p>
+                              <p className="text-[11px] text-[#86868b] mt-0.5">
+                                {isPrivate ? 'Hidden from homepage and explore.' : 'Visible on homepage and explore.'}
+                              </p>
+                            </div>
+                            <span className={cn(
+                              "inline-flex rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-[0.08em]",
+                              isPrivate ? "bg-amber-500/10 text-amber-600 dark:text-amber-400" : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            )}>
+                              {isPrivate ? 'Private' : 'Public'}
+                            </span>
+                          </div>
+                        </div>
+
                         {/* Quick layer list */}
                         {elements.length > 0 && (
                           <div className="space-y-3">
@@ -898,8 +932,8 @@ export const Editor: React.FC = () => {
               exit={{ scale: 0.9, opacity: 0 }}
               className="bg-white dark:bg-[#1c1c1e] rounded-3xl p-8 max-w-xs w-full shadow-2xl border border-black/5 dark:border-white/10 text-center space-y-5"
             >
-              <div className="w-14 h-14 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center mx-auto">
-                <Loader2 size={28} className="text-[#0071e3] animate-spin" />
+              <div className="w-14 h-14 rounded-2xl bg-[#0842C7]/10 flex items-center justify-center mx-auto">
+                <Loader2 size={28} className="text-[#0842C7] animate-spin" />
               </div>
               <div>
                 <h3 className="text-base font-bold tracking-tight">Processing Image</h3>
@@ -908,7 +942,7 @@ export const Editor: React.FC = () => {
               <div className="space-y-2">
                 <div className="w-full h-2 bg-black/[0.06] dark:bg-white/[0.06] rounded-full overflow-hidden">
                   <motion.div
-                    className="h-full bg-[#0071e3] rounded-full"
+                    className="h-full bg-[#0842C7] rounded-full"
                     initial={{ width: 0 }}
                     animate={{ width: `${uploadProgress}%` }}
                     transition={{ duration: 0.3, ease: 'easeOut' }}
@@ -961,7 +995,7 @@ export const Editor: React.FC = () => {
                     <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                     Original Link
                   </label>
-                  <div className="flex bg-[#f5f5f7] dark:bg-white/[0.04] rounded-2xl items-center border border-black/[0.04] dark:border-white/[0.06] overflow-hidden transition-all focus-within:border-[#0071e3]/30 focus-within:ring-2 focus-within:ring-[#0071e3]/10">
+                  <div className="flex bg-[#f5f5f7] dark:bg-white/[0.04] rounded-2xl items-center border border-black/[0.04] dark:border-white/[0.06] overflow-hidden transition-all focus-within:border-[#0842C7]/30 focus-within:ring-2 focus-within:ring-[#0842C7]/10">
                     <input 
                       value={`${window.location.origin}/dp/${originalSlug}`} 
                       readOnly 
@@ -970,7 +1004,7 @@ export const Editor: React.FC = () => {
                     />
                     <Button 
                       onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/dp/${originalSlug}`); toast.success("Link copied!"); }} 
-                      className="bg-[#0071e3] hover:bg-[#0077ed] rounded-xl h-9 px-4 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm shadow-blue-500/20 active:scale-95 transition-all"
+                      className="bg-[#0842C7] hover:bg-[#0953D7] rounded-xl h-9 px-4 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm shadow-blue-500/20 active:scale-95 transition-all"
                     >
                       Copy
                     </Button>
@@ -987,20 +1021,20 @@ export const Editor: React.FC = () => {
                       transition={{ duration: 0.25, ease: [0.16, 1, 0.3, 1] }}
                       className="space-y-1.5 overflow-hidden"
                     >
-                      <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#0071e3] flex items-center gap-1.5">
+                      <label className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#0842C7] flex items-center gap-1.5">
                         <Link2 size={10} />
                         Custom Link
                       </label>
-                      <div className="flex bg-[#0071e3]/[0.03] dark:bg-[#0071e3]/[0.06] rounded-2xl items-center border border-[#0071e3]/15 dark:border-[#0071e3]/20 overflow-hidden transition-all focus-within:border-[#0071e3]/30 focus-within:ring-2 focus-within:ring-[#0071e3]/10">
+                      <div className="flex bg-[#0842C7]/[0.03] dark:bg-[#0842C7]/[0.06] rounded-2xl items-center border border-[#0842C7]/15 dark:border-[#0842C7]/20 overflow-hidden transition-all focus-within:border-[#0842C7]/30 focus-within:ring-2 focus-within:ring-[#0842C7]/10">
                         <input 
                           value={`${window.location.origin}/dp/${savedCustomSlug}`} 
                           readOnly 
-                          className="bg-transparent flex-1 pl-4 pr-2 py-3 text-[13px] font-medium outline-none truncate text-[#0071e3] dark:text-[#2997ff]" 
+                          className="bg-transparent flex-1 pl-4 pr-2 py-3 text-[13px] font-medium outline-none truncate text-[#0842C7] dark:text-[#2997ff]" 
                           onFocus={(e) => e.target.select()}
                         />
                         <Button 
                           onClick={() => { navigator.clipboard.writeText(`${window.location.origin}/dp/${savedCustomSlug}`); toast.success("Custom link copied!"); }} 
-                          className="bg-[#0071e3] hover:bg-[#0077ed] rounded-xl h-9 px-4 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm shadow-blue-500/20 active:scale-95 transition-all"
+                          className="bg-[#0842C7] hover:bg-[#0953D7] rounded-xl h-9 px-4 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm shadow-blue-500/20 active:scale-95 transition-all"
                         >
                           Copy
                         </Button>
@@ -1023,25 +1057,25 @@ export const Editor: React.FC = () => {
                     className={cn(
                       "w-full flex items-center gap-3 px-4 py-3 rounded-2xl border transition-all active:scale-[0.98]",
                       isEditingSlug 
-                        ? "border-[#0071e3]/20 bg-[#0071e3]/[0.03] dark:bg-[#0071e3]/[0.06]" 
-                        : "border-black/[0.04] dark:border-white/[0.06] bg-[#f5f5f7] dark:bg-white/[0.04] hover:border-[#0071e3]/20"
+                        ? "border-[#0842C7]/20 bg-[#0842C7]/[0.03] dark:bg-[#0842C7]/[0.06]" 
+                        : "border-black/[0.04] dark:border-white/[0.06] bg-[#f5f5f7] dark:bg-white/[0.04] hover:border-[#0842C7]/20"
                     )}
                   >
                     <div className={cn(
                       "w-9 h-9 rounded-xl flex items-center justify-center transition-colors",
-                      isEditingSlug ? "bg-[#0071e3]/10 text-[#0071e3]" : "bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b]"
+                      isEditingSlug ? "bg-[#0842C7]/10 text-[#0842C7]" : "bg-black/[0.04] dark:bg-white/[0.06] text-[#86868b]"
                     )}>
                       <Link2 size={16} />
                     </div>
                     <div className="text-left flex-1">
-                      <p className={cn("text-[13px] font-semibold", isEditingSlug ? "text-[#0071e3]" : "")}>
+                      <p className={cn("text-[13px] font-semibold", isEditingSlug ? "text-[#0842C7]" : "")}>
                         {savedCustomSlug ? 'Change Custom URL' : 'Customize URL'}
                       </p>
                       <p className="text-[11px] text-[#86868b]">
                         {savedCustomSlug ? 'Update your branded link' : 'Make it memorable & branded'}
                       </p>
                     </div>
-                    <Pencil size={14} className={cn("transition-colors", isEditingSlug ? "text-[#0071e3]" : "text-[#86868b]/40")} />
+                    <Pencil size={14} className={cn("transition-colors", isEditingSlug ? "text-[#0842C7]" : "text-[#86868b]/40")} />
                   </button>
                   
                   <AnimatePresence>
@@ -1054,7 +1088,7 @@ export const Editor: React.FC = () => {
                         className="overflow-hidden"
                       >
                         <div className="space-y-3 pt-1">
-                          <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f5f5f7] dark:bg-white/[0.04] overflow-hidden transition-all focus-within:border-[#0071e3]/30 focus-within:ring-2 focus-within:ring-[#0071e3]/10">
+                          <div className="rounded-2xl border border-black/[0.06] dark:border-white/[0.06] bg-[#f5f5f7] dark:bg-white/[0.04] overflow-hidden transition-all focus-within:border-[#0842C7]/30 focus-within:ring-2 focus-within:ring-[#0842C7]/10">
                             <div className="flex items-center px-4 pt-2">
                               <span className="text-[10px] font-semibold text-[#86868b] select-none uppercase tracking-wider">URL Preview</span>
                             </div>
@@ -1095,7 +1129,7 @@ export const Editor: React.FC = () => {
                                 }
                                 setSlugSaving(false);
                               }}
-                              className="h-9 bg-[#0071e3] hover:bg-[#0077ed] rounded-xl px-5 text-[12px] font-bold text-white shadow-sm shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-40"
+                              className="h-9 bg-[#0842C7] hover:bg-[#0953D7] rounded-xl px-5 text-[12px] font-bold text-white shadow-sm shadow-blue-500/20 active:scale-95 transition-all disabled:opacity-40"
                             >
                               {slugSaving ? <Loader2 size={14} className="animate-spin" /> : savedCustomSlug ? 'Update' : 'Save'}
                             </Button>
@@ -1136,7 +1170,7 @@ export const Editor: React.FC = () => {
         message="Sign in to publish your template"
       />
 
-      {/* PUBLISH WIZARD — 2-step popup (Name → Registration Link) */}
+      {/* PUBLISH WIZARD — 2-step popup (Name → Settings) */}
       <AnimatePresence>
         {publishStep && (
           <motion.div
@@ -1154,8 +1188,8 @@ export const Editor: React.FC = () => {
             >
               {/* Step indicator */}
               <div className="flex items-center gap-2 px-7 pt-6 pb-2">
-                <div className={cn("h-1 flex-1 rounded-full transition-colors duration-300", "bg-[#0071e3]")} />
-                <div className={cn("h-1 flex-1 rounded-full transition-colors duration-300", publishStep === 'registration' ? "bg-[#0071e3]" : "bg-black/[0.06] dark:bg-white/[0.06]")} />
+                <div className={cn("h-1 flex-1 rounded-full transition-colors duration-300", "bg-[#0842C7]")} />
+                <div className={cn("h-1 flex-1 rounded-full transition-colors duration-300", publishStep === 'registration' ? "bg-[#0842C7]" : "bg-black/[0.06] dark:bg-white/[0.06]")} />
               </div>
 
               <AnimatePresence mode="wait">
@@ -1169,8 +1203,8 @@ export const Editor: React.FC = () => {
                     className="px-7 pt-4 pb-7 space-y-5"
                   >
                     <div className="text-center space-y-1.5">
-                      <div className="w-12 h-12 rounded-2xl bg-[#0071e3]/10 flex items-center justify-center mx-auto mb-3">
-                        <Pencil size={22} className="text-[#0071e3]" />
+                      <div className="w-12 h-12 rounded-2xl bg-[#0842C7]/10 flex items-center justify-center mx-auto mb-3">
+                        <Pencil size={22} className="text-[#0842C7]" />
                       </div>
                       <h2 className="text-[20px] font-bold tracking-tight">Name your template</h2>
                       <p className="text-[13px] text-[#86868b] leading-relaxed">Give your template a memorable name</p>
@@ -1183,7 +1217,7 @@ export const Editor: React.FC = () => {
                         onChange={(e) => setPublishName(e.target.value)}
                         placeholder="e.g. Birthday Party 2026"
                         maxLength={60}
-                        className="w-full bg-[#f5f5f7] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] rounded-2xl px-4 py-3.5 text-[15px] font-semibold outline-none focus:border-[#0071e3]/30 focus:ring-2 focus:ring-[#0071e3]/10 transition-all placeholder:text-[#86868b]/40"
+                        className="w-full bg-[#f5f5f7] dark:bg-white/[0.04] border border-black/[0.04] dark:border-white/[0.06] rounded-2xl px-4 py-3.5 text-[15px] font-semibold outline-none focus:border-[#0842C7]/30 focus:ring-2 focus:ring-[#0842C7]/10 transition-all placeholder:text-[#86868b]/40"
                       />
                       <p className="text-[10px] text-[#86868b] text-right">{publishName.length}/60</p>
                     </div>
@@ -1198,7 +1232,7 @@ export const Editor: React.FC = () => {
                       <button
                         disabled={!publishName.trim()}
                         onClick={() => setPublishStep('registration')}
-                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
+                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0842C7] hover:bg-[#0953D7] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none"
                       >
                         Continue
                       </button>
@@ -1219,32 +1253,71 @@ export const Editor: React.FC = () => {
                       <div className="w-12 h-12 rounded-2xl bg-purple-500/10 flex items-center justify-center mx-auto mb-3">
                         <Link2 size={22} className="text-purple-500" />
                       </div>
-                      <h2 className="text-[20px] font-bold tracking-tight">Registration link</h2>
+                      <h2 className="text-[20px] font-bold tracking-tight">Template settings</h2>
                       <p className="text-[13px] text-[#86868b] leading-relaxed">
-                        Do you have an event or registration link?
+                        Choose how this template should be shared.
                       </p>
                     </div>
 
-                    {/* Yes / No toggle */}
-                    <div className="flex bg-black/[0.03] dark:bg-white/[0.03] rounded-xl p-1 gap-1">
-                      <button
-                        onClick={() => { setHasRegLink(true); }}
-                        className={cn(
-                          "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
-                          hasRegLink ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-purple-600 dark:text-purple-400" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
-                        )}
-                      >
-                        Yes, I have one
-                      </button>
-                      <button
-                        onClick={() => { setHasRegLink(false); setRegLinkInput(''); }}
-                        className={cn(
-                          "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
-                          !hasRegLink ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-[#1d1d1f] dark:text-[#f5f5f7]" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
-                        )}
-                      >
-                        No, skip
-                      </button>
+                    <div className="space-y-4">
+                      <div className="space-y-2.5">
+                        <div>
+                          <h3 className="text-[13px] font-semibold">Registration link</h3>
+                          <p className="text-[12px] text-[#86868b] mt-0.5">Do you have an event or registration link?</p>
+                        </div>
+                        <div className="flex bg-black/[0.03] dark:bg-white/[0.03] rounded-xl p-1 gap-1">
+                          <button
+                            onClick={() => { setHasRegLink(true); }}
+                            className={cn(
+                              "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
+                              hasRegLink ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-purple-600 dark:text-purple-400" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+                            )}
+                          >
+                            Yes, I have one
+                          </button>
+                          <button
+                            onClick={() => { setHasRegLink(false); setRegLinkInput(''); setEventNameInput(''); }}
+                            className={cn(
+                              "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
+                              !hasRegLink ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-[#1d1d1f] dark:text-[#f5f5f7]" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+                            )}
+                          >
+                            No, skip
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2.5">
+                        <div>
+                          <h3 className="text-[13px] font-semibold">Privacy</h3>
+                          <p className="text-[12px] text-[#86868b] mt-0.5">Hide this template from homepage and explore?</p>
+                        </div>
+                        <div className="flex bg-black/[0.03] dark:bg-white/[0.03] rounded-xl p-1 gap-1">
+                          <button
+                            onClick={() => setIsPrivateInput(false)}
+                            className={cn(
+                              "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
+                              !isPrivateInput ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-emerald-600 dark:text-emerald-400" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+                            )}
+                          >
+                            Public
+                          </button>
+                          <button
+                            onClick={() => setIsPrivateInput(true)}
+                            className={cn(
+                              "flex-1 py-2.5 rounded-lg text-[12px] font-bold transition-all",
+                              isPrivateInput ? "bg-white dark:bg-[#2c2c2e] shadow-sm text-amber-600 dark:text-amber-400" : "text-[#86868b] hover:text-[#1d1d1f] dark:hover:text-[#f5f5f7]"
+                            )}
+                          >
+                            Private
+                          </button>
+                        </div>
+                        <p className="text-[10px] text-[#86868b] leading-relaxed">
+                          {isPrivateInput
+                            ? 'Private templates still work with their direct link, but they will not appear on the homepage or explore page.'
+                            : 'Public templates can be discovered on the homepage and explore page.'}
+                        </p>
+                      </div>
                     </div>
 
                     {/* Link input — only if yes */}
@@ -1301,10 +1374,10 @@ export const Editor: React.FC = () => {
                       <button
                         disabled={(hasRegLink && (!regLinkInput.trim() || !eventNameInput.trim())) || isPublishing}
                         onClick={publishMode === 'publish-as-new' ? handlePublishAsNewConfirm : handlePublishConfirm}
-                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0071e3] hover:bg-[#0077ed] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
+                        className="flex-1 py-3 rounded-2xl text-[13px] font-bold text-white bg-[#0842C7] hover:bg-[#0953D7] shadow-lg shadow-blue-500/20 transition-all active:scale-[0.98] disabled:opacity-40 disabled:pointer-events-none flex items-center justify-center gap-2"
                       >
-                        {isPublishing ? <Loader2 size={15} className="animate-spin" /> : (publishMode === 'publish-as-new' ? <CopyPlus size={15} /> : <Upload size={15} />)}
-                        {isPublishing ? 'Publishing...' : (publishMode === 'publish-as-new' ? 'Publish as New' : 'Publish')}
+                        {isPublishing ? <Loader2 size={15} className="animate-spin" /> : (publishMode === 'publish-as-new' ? <CopyPlus size={15} /> : (editingSlug ? <Check size={15} /> : <Upload size={15} />))}
+                        {isPublishing ? (editingSlug && publishMode !== 'publish-as-new' ? 'Updating...' : 'Publishing...') : (publishMode === 'publish-as-new' ? 'Publish as New' : (editingSlug ? 'Update Template' : 'Publish'))}
                       </button>
                     </div>
                   </motion.div>

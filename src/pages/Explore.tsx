@@ -55,7 +55,7 @@ const Explore = () => {
           </div>
           <div className="flex items-center gap-2">
             <a href="/create" onClick={handleCreateNew}>
-              <Button className="h-9 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full text-[12px] font-semibold px-4 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+              <Button className="h-9 bg-[#0842C7] hover:bg-[#0953D7] text-white rounded-full text-[12px] font-semibold px-4 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                 Create Yours
               </Button>
             </a>

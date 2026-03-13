@@ -153,7 +153,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
             </button>
             <button
               onClick={handleCropComplete}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold bg-[#0071e3] hover:bg-[#0077ed] text-white transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+              className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-[13px] font-semibold bg-[#0842C7] hover:bg-[#0953D7] text-white transition-all active:scale-95 shadow-lg shadow-blue-500/20"
             >
               <Check size={14} />
               Apply

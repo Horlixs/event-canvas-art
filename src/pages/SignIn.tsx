@@ -134,7 +134,7 @@ const SignIn: React.FC = () => {
             <button
               type="submit"
               disabled={loading}
-              className="w-full py-3 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] text-white text-[14px] font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98]"
+              className="w-full py-3 rounded-xl bg-[#0842C7] hover:bg-[#0953D7] text-white text-[14px] font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98]"
             >
               {loading && <Loader2 size={16} className="animate-spin" />}
               Sign In
@@ -167,13 +167,13 @@ const SignIn: React.FC = () => {
           {/* Footer */}
           <div className="px-6 pb-6 space-y-2 text-center">
             <p className="text-[13px] text-[#86868b]">
-              <Link to="/forgot-password" className="text-[#0071e3] hover:underline font-medium">
+              <Link to="/forgot-password" className="text-[#0842C7] hover:underline font-medium">
                 Forgot your password?
               </Link>
             </p>
             <p className="text-[13px] text-[#86868b]">
               Don't have an account?{' '}
-              <Link to="/signup" className="text-[#0071e3] hover:underline font-medium">
+              <Link to="/signup" className="text-[#0842C7] hover:underline font-medium">
                 Sign Up
               </Link>
             </p>

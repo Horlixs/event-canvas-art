@@ -27,6 +27,7 @@ interface TemplateRow {
   slug: string;
   custom_slug?: string | null;
   name: string;
+  is_private?: boolean;
   canvas_width: number;
   canvas_height: number;
   background_color: string;
@@ -66,7 +67,7 @@ const Dashboard: React.FC = () => {
       setLoading(true);
       const { data, error } = await supabase
         .from('templates' as any)
-        .select('id, slug, custom_slug, name, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares')
+        .select('id, slug, custom_slug, name, is_private, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares')
         .eq('user_id', user.id)
         .order('updated_at', { ascending: false }) as unknown as { data: TemplateRow[] | null; error: any };
 
@@ -207,7 +208,7 @@ const Dashboard: React.FC = () => {
           </div>
           <div className="flex items-center gap-2">
             <a href="/create" onClick={handleCreateNew}>
-              <Button className="h-9 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full text-[12px] font-semibold px-4 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+              <Button className="h-9 bg-[#0842C7] hover:bg-[#0953D7] text-white rounded-full text-[12px] font-semibold px-4 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                 <Plus size={14} className="mr-1.5" />
                 <span className="hidden sm:inline">New Template</span>
                 <span className="sm:hidden">New</span>
@@ -233,7 +234,7 @@ const Dashboard: React.FC = () => {
           className="mb-8"
         >
           <div className="flex items-center gap-4 mb-2">
-            <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-[#0071e3] flex items-center justify-center text-white text-[20px] md:text-[22px] font-bold shadow-xl shadow-blue-500/20">
+            <div className="w-14 h-14 md:w-16 md:h-16 rounded-2xl bg-[#0842C7] flex items-center justify-center text-white text-[20px] md:text-[22px] font-bold shadow-xl shadow-blue-500/20">
               {userInitials}
             </div>
             <div>
@@ -263,7 +264,7 @@ const Dashboard: React.FC = () => {
               Create your first DP template and share it with your community.
             </p>
             <a href="/create" onClick={handleCreateNew}>
-              <Button className="h-11 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-2xl text-[14px] font-semibold px-6 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+              <Button className="h-11 bg-[#0842C7] hover:bg-[#0953D7] text-white rounded-2xl text-[14px] font-semibold px-6 shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
                 <Plus size={16} className="mr-2" />
                 Create Template
               </Button>
@@ -416,6 +417,16 @@ const Dashboard: React.FC = () => {
                       <div className="flex items-start justify-between gap-2">
                         <Link to={`/template/${t.slug}`} className="min-w-0 flex-1">
                           <h3 className="text-[14px] font-semibold truncate mb-1.5 hover:text-blue-500 transition-colors">{t.name}</h3>
+                          <div className="mb-2">
+                            <span className={cn(
+                              "inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.08em]",
+                              t.is_private
+                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                                : "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
+                            )}>
+                              {t.is_private ? 'Private' : 'Public'}
+                            </span>
+                          </div>
                           <div className="flex items-center gap-3 flex-wrap">
                             <span className="flex items-center gap-1 text-[11px] text-[#86868b]">
                               <Eye size={10} />

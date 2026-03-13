@@ -15,6 +15,7 @@ interface CanvasState {
   templateName: string;
   registrationLink: string;
   eventName: string;
+  isPrivate: boolean;
 }
 
 function loadSavedState(): CanvasState | null {
@@ -45,6 +46,7 @@ export const useCanvas = () => {
   const [templateName, setTemplateName] = useState(initial?.templateName ?? 'Untitled Template');
   const [registrationLink, setRegistrationLink] = useState(initial?.registrationLink ?? '');
   const [eventName, setEventName] = useState(initial?.eventName ?? '');
+  const [isPrivate, setIsPrivate] = useState(initial?.isPrivate ?? false);
 
   // ── Undo / Redo ──────────────────────────────────────────────────────
   const historyRef = useRef<CanvasElement[][]>([initial?.elements ?? []]);
@@ -96,10 +98,10 @@ export const useCanvas = () => {
   // ── Auto-save to localStorage (debounced) ────────────────────────────
   useEffect(() => {
     const timer = setTimeout(() => {
-      saveState({ elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName });
+      saveState({ elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName, isPrivate });
     }, 500);
     return () => clearTimeout(timer);
-  }, [elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName]);
+  }, [elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName, isPrivate]);
 
   const addElement = useCallback((type: ShapeType) => {
     const baseProps = {
@@ -217,6 +219,7 @@ export const useCanvas = () => {
 
   const exportTemplate = useCallback(() => ({
     name: templateName,
+    isPrivate,
     width: canvasSize.width,
     height: canvasSize.height,
     elements,
@@ -224,9 +227,9 @@ export const useCanvas = () => {
     backgroundImage,
     registrationLink: registrationLink || undefined,
     eventName: eventName || undefined,
-  }), [elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName]);
+  }), [elements, canvasSize, backgroundColor, backgroundImage, templateName, registrationLink, eventName, isPrivate]);
 
-  const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null; width?: number; height?: number; name?: string; registrationLink?: string; eventName?: string }) => {
+  const importTemplate = useCallback((template: { elements: CanvasElement[]; backgroundColor?: string; backgroundImage?: string | null; width?: number; height?: number; name?: string; registrationLink?: string; eventName?: string; isPrivate?: boolean }) => {
     setElements(template.elements);
     if (template.backgroundColor) setBackgroundColor(template.backgroundColor);
     if (template.backgroundImage !== undefined) setBackgroundImage(template.backgroundImage);
@@ -234,6 +237,7 @@ export const useCanvas = () => {
     if (template.name) setTemplateName(template.name);
     if (template.registrationLink !== undefined) setRegistrationLink(template.registrationLink || '');
     if (template.eventName !== undefined) setEventName(template.eventName || '');
+    if (template.isPrivate !== undefined) setIsPrivate(template.isPrivate);
     setSelectedId(null);
   }, []);
 
@@ -257,6 +261,8 @@ export const useCanvas = () => {
     setRegistrationLink,
     eventName,
     setEventName,
+    isPrivate,
+    setIsPrivate,
     addElement,
     updateElement,
     deleteElement,

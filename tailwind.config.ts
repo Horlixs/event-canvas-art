@@ -13,6 +13,21 @@ export default {
       },
     },
     extend: {
+      colors: {
+        blue: {
+          '50':  '#eef2ff',
+          '100': '#e0e7ff',
+          '200': '#c7d2fe',
+          '300': '#a5b4fc',
+          '400': '#6b8fe8',
+          '500': '#0842C7',
+          '600': '#0636A5',
+          '700': '#052C8C',
+          '800': '#041F66',
+          '900': '#031547',
+          '950': '#020D2E',
+        },
+      },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
         display: ['Oswald', 'sans-serif'],

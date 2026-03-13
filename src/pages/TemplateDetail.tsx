@@ -120,7 +120,7 @@ const TemplateDetail: React.FC = () => {
         <h1 className="text-[20px] font-bold mb-2 text-[#1d1d1f] dark:text-[#f5f5f7]">Template Not Found</h1>
         <p className="text-[14px] text-[#86868b] mb-6">This template may have been removed or doesn't exist.</p>
         <Link to="/dashboard">
-          <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-10 px-5 text-[13px] font-semibold">
+          <Button className="bg-[#0842C7] hover:bg-[#0953D7] text-white rounded-full h-10 px-5 text-[13px] font-semibold">
             Back to Dashboard
           </Button>
         </Link>
@@ -175,7 +175,7 @@ const TemplateDetail: React.FC = () => {
               to={`/dp/${template.custom_slug || template.slug}`}
               target="_blank"
               rel="noopener noreferrer"
-              className="h-8 px-3 rounded-full bg-[#0071e3] hover:bg-[#0077ed] text-white text-[12px] font-semibold flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
+              className="h-8 px-3 rounded-full bg-[#0842C7] hover:bg-[#0953D7] text-white text-[12px] font-semibold flex items-center gap-1.5 transition-all active:scale-95 shadow-lg shadow-blue-500/20"
             >
               <ExternalLink size={13} />
               <span className="hidden sm:inline">Open Generator</span>
@@ -234,7 +234,7 @@ const TemplateDetail: React.FC = () => {
                 <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                 Generator Link
               </label>
-              <div className="flex bg-[#f5f5f7] dark:bg-white/[0.04] rounded-xl items-center border border-black/[0.04] dark:border-white/[0.06] overflow-hidden transition-all focus-within:border-[#0071e3]/30 focus-within:ring-2 focus-within:ring-[#0071e3]/10">
+              <div className="flex bg-[#f5f5f7] dark:bg-white/[0.04] rounded-xl items-center border border-black/[0.04] dark:border-white/[0.06] overflow-hidden transition-all focus-within:border-[#0842C7]/30 focus-within:ring-2 focus-within:ring-[#0842C7]/10">
                 <input
                   value={generatorUrl}
                   readOnly
@@ -243,7 +243,7 @@ const TemplateDetail: React.FC = () => {
                 />
                 <Button
                   onClick={handleCopyLink}
-                  className="bg-[#0071e3] hover:bg-[#0077ed] rounded-lg h-8 px-3.5 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm active:scale-95 transition-all"
+                  className="bg-[#0842C7] hover:bg-[#0953D7] rounded-lg h-8 px-3.5 text-[11px] font-bold text-white shrink-0 mr-1.5 shadow-sm active:scale-95 transition-all"
                 >
                   <Copy size={12} className="mr-1" />
                   Copy

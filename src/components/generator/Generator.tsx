@@ -142,20 +142,22 @@ const URLImageShape: React.FC<{
   );
 };
 
-// --- HELPER: Watermark Logo (favicon) ---
-const WatermarkLogo: React.FC<{ width: number; height: number }> = ({ width, height }) => {
-  const [logo] = useImage('/favicon.ico', 'anonymous');
-  if (!logo) return null;
-  const size = Math.max(24, Math.round(width * 0.04));
-  const padding = Math.round(width * 0.025);
+// --- HELPER: Watermark Text ---
+const WatermarkText: React.FC<{ width: number; height: number }> = ({ width, height }) => {
+  const fontSize = Math.max(16, Math.round(width * 0.018));
+  const padding = Math.round(width * 0.024);
+  const text = 'Made with Dummmy.me';
+  const estimatedWidth = Math.round(text.length * fontSize * 0.55);
   return (
-    <KonvaImage
-      image={logo}
-      width={size}
-      height={size}
-      x={width - size - padding}
-      y={height - size - padding}
-      opacity={0.5}
+    <Text
+      text={text}
+      fontSize={fontSize}
+      fontFamily="Inter, Arial, sans-serif"
+      fontStyle="600"
+      fill="rgba(255,255,255,0.88)"
+      x={width - estimatedWidth - padding}
+      y={height - fontSize - padding}
+      opacity={0.85}
       shadowColor="rgba(0,0,0,0.4)"
       shadowBlur={4}
       shadowOffsetX={1}
@@ -368,13 +370,13 @@ const GeneratorError: React.FC<{ error: string }> = ({ error }) => (
           className="flex flex-col items-center gap-3 pt-4"
         >
           <Link to="/">
-            <Button className="bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-full h-11 px-7 text-[14px] font-semibold shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
+            <Button className="bg-[#0842C7] hover:bg-[#0953D7] text-white rounded-full h-11 px-7 text-[14px] font-semibold shadow-lg shadow-blue-500/20 active:scale-95 transition-all">
               Go Home
             </Button>
           </Link>
           <button 
             onClick={() => window.location.reload()}
-            className="text-[13px] font-medium text-[#86868b] hover:text-[#0071e3] transition-colors"
+            className="text-[13px] font-medium text-[#86868b] hover:text-[#0842C7] transition-colors"
           >
             Try again
           </button>
@@ -667,8 +669,8 @@ export const Generator: React.FC = () => {
                     {fontsLoaded && elements.map((el) => (
                       <RenderShape key={el.id} element={el} userImage={el.isPlaceholder ? userImages[el.id] : undefined} />
                     ))}
-                    {/* Watermark — favicon logo */}
-                    <WatermarkLogo width={template.width} height={template.height} />
+                    {/* Watermark */}
+                    <WatermarkText width={template.width} height={template.height} />
                   </Layer>
                 </Stage>
               </div>
@@ -770,7 +772,7 @@ export const Generator: React.FC = () => {
                 <Button 
                   onClick={handleDownload} 
                   disabled={isDownloadDisabled}
-                  className="w-full h-12 bg-[#0071e3] hover:bg-[#0077ed] text-white rounded-2xl text-[14px] font-semibold transition-all shadow-lg shadow-blue-500/20 disabled:opacity-40 disabled:shadow-none"
+                  className="w-full h-12 bg-[#0842C7] hover:bg-[#0953D7] text-white rounded-2xl text-[14px] font-semibold transition-all shadow-lg shadow-blue-500/20 disabled:opacity-40 disabled:shadow-none"
                 >
                   <Download className="w-[18px] h-[18px] mr-2" />
                   Download Image

@@ -84,8 +84,8 @@ const PublishedDesign = () => {
         </div>
       </div>
       
-      <div className="absolute bottom-4 text-white/40 text-xs font-sans">
-          Powered by Dummy<span className="text-blue-500">.</span>
+        <div className="absolute bottom-4 text-white/40 text-xs font-sans">
+          Made with Dummmy.me
       </div>
     </div>
   );

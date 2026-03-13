@@ -200,7 +200,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab 
               <button
                 type="submit"
                 disabled={loading}
-                className="w-full py-3 rounded-xl bg-[#0071e3] hover:bg-[#0077ed] text-white text-[14px] font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-blue-500/20"
+                className="w-full py-3 rounded-xl bg-[#0842C7] hover:bg-[#0953D7] text-white text-[14px] font-semibold transition-all disabled:opacity-50 flex items-center justify-center gap-2 active:scale-[0.98] shadow-lg shadow-blue-500/20"
               >
                 {loading && <Loader2 size={16} className="animate-spin" />}
                 {tab === 'login' ? 'Sign In' : 'Create Account'}
@@ -236,7 +236,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab 
                 <Link
                   to="/forgot-password"
                   onClick={onClose}
-                  className="text-[12px] text-[#0071e3] hover:underline font-medium"
+                  className="text-[12px] text-[#0842C7] hover:underline font-medium"
                 >
                   Forgot your password?
                 </Link>
