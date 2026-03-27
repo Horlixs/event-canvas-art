@@ -66,7 +66,7 @@ const ResetPassword: React.FC = () => {
       <header className="w-full border-b border-black/[0.05] dark:border-white/[0.05] bg-white/70 dark:bg-black/70 backdrop-blur-2xl">
         <div className="max-w-[1440px] mx-auto h-14 flex items-center justify-between px-6">
           <Link to="/" className="text-xl font-semibold tracking-tighter hover:opacity-70 transition-opacity">
-            Dummy<span className="text-blue-500">.</span>
+            Dummmy<span className="text-blue-500">.</span>
           </Link>
         </div>
       </header>

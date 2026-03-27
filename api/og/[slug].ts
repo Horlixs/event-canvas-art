@@ -17,12 +17,12 @@ export default async function handler(req: any, res: any) {
   if (!slug) return res.redirect('/');
 
   const proto = req.headers['x-forwarded-proto'] || 'https';
-  const host = req.headers['x-forwarded-host'] || req.headers.host || 'dummy-io.vercel.app';
+  const host = req.headers['x-forwarded-host'] || req.headers.host || 'dummmy-io.vercel.app';
   const origin = `${proto}://${host}`;
   const ogUrl = `${origin}/dp/${slug}`;
 
-  let ogTitle = 'Dummy.io | Edit custom Dummies';
-  let ogDescription = 'Create and customize personalized DPs with Dummy.io';
+  let ogTitle = 'Dummmy.io | Edit custom Dummies';
+  let ogDescription = 'Create and customize personalized DPs with Dummmy.io';
   let ogImage = '';
 
   // ── Fetch template from Supabase REST API ──
@@ -35,8 +35,8 @@ export default async function handler(req: any, res: any) {
       if (!row) row = await fetchTemplate(sbUrl, sbKey, 'custom_slug', slug);
 
       if (row) {
-        ogTitle = `${row.name} | Dummy.io`;
-        ogDescription = `Generate your personalized "${row.name}" DP on Dummy.io — customize and download instantly.`;
+        ogTitle = `${row.name} | Dummmy.io`;
+        ogDescription = `Generate your personalized "${row.name}" DP on Dummmy.io — customize and download instantly.`;
         const img = row.background_image || '';
         // Use the template's background image directly as og:image
         if (img.startsWith('http')) {

@@ -203,7 +203,7 @@ const Dashboard: React.FC = () => {
               <ChevronLeft size={18} className="text-[#86868b]" />
             </Link>
             <Link to="/" className="text-[17px] font-semibold tracking-tighter hover:opacity-70 transition-opacity">
-              Dummy<span className="text-blue-500">.</span>
+              Dummmy<span className="text-blue-500">.</span>
             </Link>
           </div>
           <div className="flex items-center gap-2">
