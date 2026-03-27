@@ -144,7 +144,7 @@ const URLImageShape: React.FC<{
 
 // --- HELPER: Watermark Text ---
 const WatermarkText: React.FC<{ width: number; height: number }> = ({ width, height }) => {
-  const fontSize = Math.max(16, Math.round(width * 0.018));
+  const fontSize = Math.max(8, Math.round(width * 0.018));
   const padding = Math.round(width * 0.024);
   const text = 'Made with Dummmy.me';
   const estimatedWidth = Math.round(text.length * fontSize * 0.55);
@@ -522,6 +522,7 @@ export const Generator: React.FC = () => {
   const { user } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
   const pendingDownloadRef = useRef(false);
+  const [dummmyLogo] = useImage('/favicon.ico');
 
   // When user signs in via auth modal, auto-trigger download
   useEffect(() => {
@@ -535,108 +536,11 @@ export const Generator: React.FC = () => {
 
   const SITE_NAME = 'Dummy';
   const SITE_URL = window.location.origin;
-  const addDummmyWatermarkFooter = async (dataUrl: string) => {
-  return new Promise<string>((resolve) => {
-    const img = new Image();
-    img.crossOrigin = 'anonymous';
-    img.src = dataUrl;
-
-    img.onload = () => {
-      const baseWidth = img.width;
-      const baseHeight = img.height;
-
-      // 🔥 Responsive scaling
-      const scale = baseWidth / 1024;
-
-      const footerHeight = 120 * scale;
-      const padding = 40 * scale;
-      const fontSize = 26 * scale;
-      const logoHeight = 40 * scale;
-      const gap = 12 * scale;
-
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-
-      if (!ctx) return resolve(dataUrl);
-
-      // HiDPI fix
-      const dpr = window.devicePixelRatio || 1;
-      canvas.width = baseWidth * dpr;
-      canvas.height = (baseHeight + footerHeight) * dpr;
-      canvas.style.width = `${baseWidth}px`;
-      canvas.style.height = `${baseHeight + footerHeight}px`;
-      ctx.scale(dpr, dpr);
-
-      // Draw original image
-      ctx.drawImage(img, 0, 0, baseWidth, baseHeight);
-
-      // Footer background
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(0, baseHeight, baseWidth, footerHeight);
-
-      // Optional border
-      ctx.strokeStyle = '#e5e5e5';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      ctx.moveTo(0, baseHeight);
-      ctx.lineTo(baseWidth, baseHeight);
-      ctx.stroke();
-
-      // Load logo
-      const logo = new Image();
-      logo.src = '/dummmy-logo.png'; // 🔥 replace with your actual path
-
-      logo.onload = () => {
-        const logoRatio = logo.width / logo.height;
-        const logoWidth = logoHeight * logoRatio;
-
-        ctx.font = `500 ${fontSize}px Inter, Arial, sans-serif`;
-        ctx.fillStyle = '#555';
-        ctx.textBaseline = 'middle';
-
-        const text1 = 'Made with';
-        const text2 = 'Dummmy';
-
-        const text1Width = ctx.measureText(text1).width;
-        const text2Width = ctx.measureText(text2).width;
-
-        const totalWidth =
-          text1Width + gap + logoWidth + gap + text2Width;
-
-        // ✅ RIGHT-ALIGNED START POINT
-        let x = baseWidth - totalWidth - padding;
-        const centerY = baseHeight + footerHeight / 2;
-
-        // Draw "Made with"
-        ctx.fillText(text1, x, centerY);
-        x += text1Width + gap;
-
-        // Draw logo
-        ctx.drawImage(
-          logo,
-          x,
-          centerY - logoHeight / 2,
-          logoWidth,
-          logoHeight
-        );
-        x += logoWidth + gap;
-
-        // Draw "Dummmy"
-        ctx.fillText(text2, x, centerY);
-
-        resolve(canvas.toDataURL('image/png'));
-      };
-
-      logo.onerror = () => resolve(dataUrl);
-    };
-  });
-};
 
   const performDownload = useCallback(async () => {
     if (!stageRef.current) return;
     try {
-      const rawUri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
-      const uri = await addDummmyWatermarkFooter(rawUri);
+      const uri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
 
       // Build smart filename
       const tplName = (template?.name || 'design').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '-');
@@ -703,6 +607,9 @@ export const Generator: React.FC = () => {
   if (isLoading) return <GeneratorSkeleton />;
   if (error || !template) return <GeneratorError error={error || 'Template not found'} />;
 
+  const FOOTER_HEIGHT = 80;
+  const CANVAS_HEIGHT = template.height + FOOTER_HEIGHT;
+
   const isDownloadDisabled = placeholderElements.length > 0 && placeholderElements.some((el) => !userImages[el.id]);
   const hasControls = placeholderElements.length > 0 || textElements.length > 0;
 
@@ -749,33 +656,93 @@ export const Generator: React.FC = () => {
               className="relative"
               style={{
                 width: template.width,
-                height: template.height,
+                height: CANVAS_HEIGHT,
                 transform: `scale(${scale})`,
                 transformOrigin: 'center center',
               }}
             >
               {/* Canvas shadow */}
               <div className="absolute -inset-1 rounded-lg bg-black/[0.08] dark:bg-black/30 blur-xl" />
-              <div className="relative bg-white overflow-hidden shadow-2xl" style={{ width: template.width, height: template.height }}>
-                <Stage ref={stageRef} width={template.width} height={template.height}>
+              <div className="relative bg-white overflow-hidden shadow-2xl" style={{ width: template.width, height: CANVAS_HEIGHT }}>
+                <Stage ref={stageRef} width={template.width} height={CANVAS_HEIGHT}>
                   <Layer>
-  <Rect width={template.width} height={template.height} fill={template.backgroundColor} />
 
-  {template.backgroundImage && (
-    <BackgroundImage src={template.backgroundImage} width={template.width} height={template.height} />
-  )}
+                    {/* Top: original design (keeps y=0) */}
+                    <Group x={0} y={0}>
+                      <Rect width={template.width} height={template.height} fill={template.backgroundColor} />
 
-  {fontsLoaded && elements.map((el) => (
-    <RenderShape 
-      key={el.id} 
-      element={el} 
-      userImage={el.isPlaceholder ? userImages[el.id] : undefined} 
-    />
-  ))}
+                      {template.backgroundImage && (
+                        <BackgroundImage src={template.backgroundImage} width={template.width} height={template.height} />
+                      )}
 
-  {/* ✅ ADD WATERMARK HERE */}
-  <WatermarkText width={template.width} height={template.height} />
-</Layer>
+                      {fontsLoaded && elements.map((el) => (
+                        <RenderShape
+                          key={el.id}
+                          element={el}
+                          userImage={el.isPlaceholder ? userImages[el.id] : undefined}
+                        />
+                      ))}
+                    </Group>
+
+                    {/* Footer area inside same Layer */}
+                    <Rect x={0} y={template.height} width={template.width} height={FOOTER_HEIGHT} fill="#ffffff" />
+                    <Line points={[0, template.height, template.width, template.height]} stroke="#e5e5e5" strokeWidth={1} />
+
+                    {/* Watermark content (right-aligned) */}
+                    {(() => {
+                      const text1 = 'Made with';
+                      const text2 = 'Dummmy.me';
+                      const fontSize = 14;
+                      const padding = Math.round(template.width * 0.05);
+                      const gap = 6;
+                      const estText1Width = Math.round(text1.length * fontSize * 0.5);
+                      const estText2Width = Math.round(text2.length * fontSize * 0.5);
+                      const logoHeight = 44;
+                      const logoWidth = dummmyLogo ? Math.round((dummmyLogo.width / dummmyLogo.height) * logoHeight) : 0;
+                      const totalWidth = estText1Width + gap + logoWidth + gap + estText2Width;
+                      let x = template.width - totalWidth - padding;
+                      const centerY = template.height + FOOTER_HEIGHT / 2;
+
+                      return (
+                        <>
+                          <Text
+                            text={text1}
+                            fontSize={fontSize}
+                            fontFamily="Inter, Arial, sans-serif"
+                            fill="#888"
+                            x={x}
+                            y={centerY}
+                            offsetY={fontSize / 2}
+                            listening={false}
+                          />
+                          {dummmyLogo && (
+                            <>
+                              <KonvaImage
+                                image={dummmyLogo}
+                                x={x + estText1Width + gap}
+                                y={centerY - logoHeight / 2}
+                                width={logoWidth}
+                                height={logoHeight}
+                                listening={false}
+                              />
+                              <Text
+                                text={text2}
+                                fontSize={fontSize}
+                                fontFamily="Inter, Arial, sans-serif"
+                                fontStyle="700"
+                                fill="#1d1d1f"
+                                x={x + estText1Width + gap + logoWidth + gap}
+                                y={centerY}
+                                offsetY={fontSize / 2}
+                                listening={false}
+                              />
+                            </>
+                          )}
+                        </>
+                      );
+                    })()}
+
+                  </Layer>
                 </Stage>
               </div>
             </div>
