@@ -534,7 +534,7 @@ export const Generator: React.FC = () => {
     }
   }, [user]);
 
-  const SITE_NAME = 'Dummy';
+  const SITE_NAME = 'Dummmy';
   const SITE_URL = window.location.origin;
 
   const performDownload = useCallback(async () => {
