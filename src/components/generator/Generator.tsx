@@ -535,11 +535,108 @@ export const Generator: React.FC = () => {
 
   const SITE_NAME = 'Dummy';
   const SITE_URL = window.location.origin;
+  const addDummmyWatermarkFooter = async (dataUrl: string) => {
+  return new Promise<string>((resolve) => {
+    const img = new Image();
+    img.crossOrigin = 'anonymous';
+    img.src = dataUrl;
 
-  const performDownload = useCallback(() => {
+    img.onload = () => {
+      const baseWidth = img.width;
+      const baseHeight = img.height;
+
+      // 🔥 Responsive scaling
+      const scale = baseWidth / 1024;
+
+      const footerHeight = 120 * scale;
+      const padding = 40 * scale;
+      const fontSize = 26 * scale;
+      const logoHeight = 40 * scale;
+      const gap = 12 * scale;
+
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+
+      if (!ctx) return resolve(dataUrl);
+
+      // HiDPI fix
+      const dpr = window.devicePixelRatio || 1;
+      canvas.width = baseWidth * dpr;
+      canvas.height = (baseHeight + footerHeight) * dpr;
+      canvas.style.width = `${baseWidth}px`;
+      canvas.style.height = `${baseHeight + footerHeight}px`;
+      ctx.scale(dpr, dpr);
+
+      // Draw original image
+      ctx.drawImage(img, 0, 0, baseWidth, baseHeight);
+
+      // Footer background
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, baseHeight, baseWidth, footerHeight);
+
+      // Optional border
+      ctx.strokeStyle = '#e5e5e5';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(0, baseHeight);
+      ctx.lineTo(baseWidth, baseHeight);
+      ctx.stroke();
+
+      // Load logo
+      const logo = new Image();
+      logo.src = '/dummmy-logo.png'; // 🔥 replace with your actual path
+
+      logo.onload = () => {
+        const logoRatio = logo.width / logo.height;
+        const logoWidth = logoHeight * logoRatio;
+
+        ctx.font = `500 ${fontSize}px Inter, Arial, sans-serif`;
+        ctx.fillStyle = '#555';
+        ctx.textBaseline = 'middle';
+
+        const text1 = 'Made with';
+        const text2 = 'Dummmy';
+
+        const text1Width = ctx.measureText(text1).width;
+        const text2Width = ctx.measureText(text2).width;
+
+        const totalWidth =
+          text1Width + gap + logoWidth + gap + text2Width;
+
+        // ✅ RIGHT-ALIGNED START POINT
+        let x = baseWidth - totalWidth - padding;
+        const centerY = baseHeight + footerHeight / 2;
+
+        // Draw "Made with"
+        ctx.fillText(text1, x, centerY);
+        x += text1Width + gap;
+
+        // Draw logo
+        ctx.drawImage(
+          logo,
+          x,
+          centerY - logoHeight / 2,
+          logoWidth,
+          logoHeight
+        );
+        x += logoWidth + gap;
+
+        // Draw "Dummmy"
+        ctx.fillText(text2, x, centerY);
+
+        resolve(canvas.toDataURL('image/png'));
+      };
+
+      logo.onerror = () => resolve(dataUrl);
+    };
+  });
+};
+
+  const performDownload = useCallback(async () => {
     if (!stageRef.current) return;
     try {
-      const uri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
+      const rawUri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
+      const uri = await addDummmyWatermarkFooter(rawUri);
 
       // Build smart filename
       const tplName = (template?.name || 'design').replace(/[^a-zA-Z0-9 ]/g, '').trim().replace(/\s+/g, '-');
@@ -662,16 +759,23 @@ export const Generator: React.FC = () => {
               <div className="relative bg-white overflow-hidden shadow-2xl" style={{ width: template.width, height: template.height }}>
                 <Stage ref={stageRef} width={template.width} height={template.height}>
                   <Layer>
-                    <Rect width={template.width} height={template.height} fill={template.backgroundColor} />
-                    {template.backgroundImage && (
-                      <BackgroundImage src={template.backgroundImage} width={template.width} height={template.height} />
-                    )}
-                    {fontsLoaded && elements.map((el) => (
-                      <RenderShape key={el.id} element={el} userImage={el.isPlaceholder ? userImages[el.id] : undefined} />
-                    ))}
-                    {/* Watermark */}
-                    <WatermarkText width={template.width} height={template.height} />
-                  </Layer>
+  <Rect width={template.width} height={template.height} fill={template.backgroundColor} />
+
+  {template.backgroundImage && (
+    <BackgroundImage src={template.backgroundImage} width={template.width} height={template.height} />
+  )}
+
+  {fontsLoaded && elements.map((el) => (
+    <RenderShape 
+      key={el.id} 
+      element={el} 
+      userImage={el.isPlaceholder ? userImages[el.id] : undefined} 
+    />
+  ))}
+
+  {/* ✅ ADD WATERMARK HERE */}
+  <WatermarkText width={template.width} height={template.height} />
+</Layer>
                 </Stage>
               </div>
             </div>

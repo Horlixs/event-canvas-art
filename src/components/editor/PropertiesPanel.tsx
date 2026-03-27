@@ -45,6 +45,10 @@ const FONT_DATA: Record<string, { weights: number[]; labels: Record<number, stri
     weights: [400],
     labels: { 400: 'Regular' },
   },
+    'Ojuju': {
+    weights: [200, 300, 400, 500, 600, 700, 800],
+    labels: { 200: 'Light', 300: 'Regular', 400: 'Medium', 500: 'SemiBold', 600: 'Bold', 700: 'ExtraBold', 800: 'Black'},
+  },
   'Lobster': {
     weights: [400],
     labels: { 400: 'Regular' },
