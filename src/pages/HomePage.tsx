@@ -3,11 +3,12 @@ import { Link, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
+import { useTheme } from "@/hooks/useTheme";
 import { getRecentTemplates, PublicTemplate } from "@/lib/templates";
 import { 
   ArrowRight, Share2,
   ChevronRight, LayoutDashboard, Zap, 
-  Globe2, BarChart3, Shield, Moon, Sun,
+  Globe2, BarChart3, Shield,
   LogOut, Eye, Download, Image as ImageIcon, Clock
 } from "lucide-react";
 
@@ -25,7 +26,6 @@ const SectionWrapper = ({ children, className = "" }) => (
 );
 
 const Homepage = () => {
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
   const { user, signOut } = useAuth();
   const [profileOpen, setProfileOpen] = useState(false);
   const profileRef = useRef<HTMLDivElement>(null);
@@ -39,13 +39,6 @@ const Homepage = () => {
     }).catch((err) => console.error('Error fetching recent templates:', err));
   }, []);
 
-  useEffect(() => {
-    const root = window.document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
-
   // Close profile dropdown on outside click
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
@@ -56,10 +49,6 @@ const Homepage = () => {
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
   }, []);
-
-  const toggleTheme = () => {
-    setTheme(theme === "light" ? "dark" : "light");
-  };
 
   const navigate = useNavigate();
   const handleCreateNew = (e: React.MouseEvent) => {
@@ -94,10 +83,6 @@ const Homepage = () => {
 
           {/* Right — Actions (fixed width for balance) */}
           <div className="flex-1 flex items-center justify-end gap-3">
-            <button onClick={toggleTheme} className="p-2 opacity-60 hover:opacity-100 transition-opacity">
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
-
             {user ? (
               <div className="relative" ref={profileRef}>
                 <button

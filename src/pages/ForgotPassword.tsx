@@ -1,8 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Loader2, Moon, Sun, ArrowLeft } from 'lucide-react';
+import { Mail, Loader2, ArrowLeft } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 
 const ForgotPassword: React.FC = () => {
   const { resetPassword } = useAuth();
@@ -11,15 +12,6 @@ const ForgotPassword: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,9 +40,6 @@ const ForgotPassword: React.FC = () => {
           <Link to="/" className="text-xl font-semibold tracking-tighter hover:opacity-70 transition-opacity">
             Dummy<span className="text-blue-500">.</span>
           </Link>
-          <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="p-2 opacity-60 hover:opacity-100 transition-opacity">
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
         </div>
       </header>
 

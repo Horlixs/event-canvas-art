@@ -4,6 +4,8 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { AuthProvider } from "@/hooks/useAuth";
+import { ThemeProvider } from "@/hooks/useTheme";
+import { FloatingThemeButton } from "@/components/FloatingThemeButton";
 
 // Pages
 import Homepage from "@/pages/HomePage";
@@ -22,43 +24,46 @@ const queryClient = new QueryClient();
 
 const App = () => {
   return (
-    <QueryClientProvider client={queryClient}>
-      <AuthProvider>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner position="bottom-center" />
+    <ThemeProvider>
+      <QueryClientProvider client={queryClient}>
+        <AuthProvider>
+          <TooltipProvider>
+            <Toaster />
+            <Sonner position="bottom-center" />
+            <FloatingThemeButton />
 
-          <Routes>
-            <Route path="/" element={<Homepage />} />
-            
-            {/* Auth Pages */}
-            <Route path="/signin" element={<SignIn />} />
-            <Route path="/signup" element={<SignUp />} />
-            <Route path="/forgot-password" element={<ForgotPassword />} />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            
-            {/* Create New Designs */}
-            <Route path="/create" element={<Index />} />
-            <Route path="/edit/:slug" element={<Index />} />
+            <Routes>
+              <Route path="/" element={<Homepage />} />
+              
+              {/* Auth Pages */}
+              <Route path="/signin" element={<SignIn />} />
+              <Route path="/signup" element={<SignUp />} />
+              <Route path="/forgot-password" element={<ForgotPassword />} />
+              <Route path="/reset-password" element={<ResetPassword />} />
+              
+              {/* Create New Designs */}
+              <Route path="/create" element={<Index />} />
+              <Route path="/edit/:slug" element={<Index />} />
 
-            {/* User Dashboard */}
-            <Route path="/dashboard" element={<Dashboard />} />
+              {/* User Dashboard */}
+              <Route path="/dashboard" element={<Dashboard />} />
 
-            {/* Explore all templates */}
-            <Route path="/explore" element={<Explore />} />
-            
-            {/* View & Customize Published Designs */}
-            <Route path="/dp/:slug" element={<GeneratorPage />} />
+              {/* Explore all templates */}
+              <Route path="/explore" element={<Explore />} />
+              
+              {/* View & Customize Published Designs */}
+              <Route path="/dp/:slug" element={<GeneratorPage />} />
 
-            {/* Template Detail / Analytics Page */}
-            <Route path="/template/:slug" element={<TemplateDetail />} />
+              {/* Template Detail / Analytics Page */}
+              <Route path="/template/:slug" element={<TemplateDetail />} />
 
-            <Route path="*" element={<NotFound />} />
-          </Routes>
+              <Route path="*" element={<NotFound />} />
+            </Routes>
 
-      </TooltipProvider>
-      </AuthProvider>
-    </QueryClientProvider>
+          </TooltipProvider>
+        </AuthProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
   );
 };
 

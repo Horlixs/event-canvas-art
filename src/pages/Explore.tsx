@@ -2,15 +2,15 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { useTheme } from "@/hooks/useTheme";
 import { getAllPublicTemplates, PublicTemplate } from "@/lib/templates";
 import {
   ArrowRight, Eye, Download, Clock,
-  ChevronLeft, Moon, Sun, Loader2,
+  ChevronLeft, Loader2,
   Image as ImageIcon, Search, Layers
 } from "lucide-react";
 
 const Explore = () => {
-  const [theme, setTheme] = useState(localStorage.getItem("theme") || "dark");
   const [templates, setTemplates] = useState<PublicTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -21,13 +21,6 @@ const Explore = () => {
     localStorage.removeItem('canvas_editor_state');
     navigate('/create');
   };
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove("light", "dark");
-    root.classList.add(theme);
-    localStorage.setItem("theme", theme);
-  }, [theme]);
 
   useEffect(() => {
     getAllPublicTemplates().then((data) => {
@@ -59,12 +52,6 @@ const Explore = () => {
                 Create Yours
               </Button>
             </a>
-            <button
-              onClick={() => setTheme(theme === "light" ? "dark" : "light")}
-              className="p-2 opacity-60 hover:opacity-100 transition-opacity"
-            >
-              {theme === "dark" ? <Sun size={18} /> : <Moon size={18} />}
-            </button>
           </div>
         </div>
       </header>

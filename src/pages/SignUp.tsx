@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Mail, Lock, User, Loader2, Eye, EyeOff, Moon, Sun } from 'lucide-react';
+import { Mail, Lock, User, Loader2, Eye, EyeOff } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
+import { useTheme } from '@/hooks/useTheme';
 
 const SignUp: React.FC = () => {
   const { signUpWithEmail, signInWithGoogle, user } = useAuth();
@@ -15,15 +16,6 @@ const SignUp: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
-
-  const [theme, setTheme] = useState(localStorage.getItem('theme') || 'dark');
-
-  useEffect(() => {
-    const root = document.documentElement;
-    root.classList.remove('light', 'dark');
-    root.classList.add(theme);
-    localStorage.setItem('theme', theme);
-  }, [theme]);
 
   // Redirect if already logged in
   useEffect(() => {
@@ -72,9 +64,6 @@ const SignUp: React.FC = () => {
           <Link to="/" className="text-xl font-semibold tracking-tighter hover:opacity-70 transition-opacity">
             Dummy<span className="text-blue-500">.</span>
           </Link>
-          <button onClick={() => setTheme(theme === 'light' ? 'dark' : 'light')} className="p-2 opacity-60 hover:opacity-100 transition-opacity">
-            {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-          </button>
         </div>
       </header>
 
