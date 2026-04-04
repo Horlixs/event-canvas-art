@@ -74,7 +74,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab 
   const handleGoogleSignIn = async () => {
     setLoading(true);
     try {
-      await signInWithGoogle();
+      // Pass current location so user returns to same page after Google signin
+      await signInWithGoogle(window.location.href);
       // Google sign-in redirects the page, so onAuthSuccess will be called after redirect
       if (onAuthSuccess) {
         setTimeout(onAuthSuccess, 100);

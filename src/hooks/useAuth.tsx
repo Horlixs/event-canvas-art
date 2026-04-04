@@ -9,7 +9,7 @@ interface AuthContextValue {
   loading: boolean;
   signInWithEmail: (email: string, password: string) => Promise<{ error: Error | null }>;
   signUpWithEmail: (email: string, password: string, name?: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<void>;
+  signInWithGoogle: (returnTo?: string) => Promise<void>;
   signOut: () => Promise<void>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
@@ -73,6 +73,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
+      
+      // Check if we're returning from OAuth redirect
+      if (session?.user && new URLSearchParams(window.location.search).get('auth_redirect') === 'true') {
+        const returnTo = sessionStorage.getItem('auth_return_to');
+        sessionStorage.removeItem('auth_return_to');
+        
+        // Small delay to ensure UI updates, then redirect
+        if (returnTo) {
+          setTimeout(() => {
+            window.location.href = returnTo;
+          }, 100);
+        }
+      }
     });
 
     // Listen for auth changes
@@ -184,10 +197,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return { error: null };
   };
 
-  const signInWithGoogle = async () => {
+  const signInWithGoogle = async (returnTo?: string) => {
+    // Store the return URL for after OAuth redirect
+    const redirectUrl = returnTo || window.location.href;
+    sessionStorage.setItem('auth_return_to', redirectUrl);
+    
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: window.location.origin },
+      options: { redirectTo: `${window.location.origin}?auth_redirect=true` },
     });
   };
 
