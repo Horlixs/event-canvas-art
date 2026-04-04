@@ -12,6 +12,7 @@ import Homepage from "@/pages/HomePage";
 import Index from "./pages/Index"; // The Creator/Editor
 import { GeneratorPage } from "@/pages/GeneratorPage"; // Import your Generator component
 import Dashboard from "@/pages/Dashboard";
+import AdminDashboard from "@/pages/AdminDashboard";
 import Explore from "@/pages/Explore";
 import TemplateDetail from "@/pages/TemplateDetail";
 import SignIn from "@/pages/SignIn";
@@ -47,6 +48,9 @@ const App = () => {
 
               {/* User Dashboard */}
               <Route path="/dashboard" element={<Dashboard />} />
+
+              {/* Admin Dashboard */}
+              <Route path="/admin" element={<AdminDashboard />} />
 
               {/* Explore all templates */}
               <Route path="/explore" element={<Explore />} />

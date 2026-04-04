@@ -136,6 +136,19 @@ const Homepage = () => {
                           <Zap size={15} className="text-[#86868b]" />
                           Create New
                         </Link>
+                        {import.meta.env.VITE_ADMIN_EMAIL && user?.email === import.meta.env.VITE_ADMIN_EMAIL && (
+                          <>
+                            <div className="h-px bg-black/[0.05] dark:bg-white/[0.05] my-1 mx-2" />
+                            <Link
+                              to="/admin"
+                              onClick={() => setProfileOpen(false)}
+                              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-[13px] font-medium hover:bg-blue-500/[0.06] text-blue-600 dark:text-blue-400 transition-colors"
+                            >
+                              <Shield size={15} />
+                              Admin Panel
+                            </Link>
+                          </>
+                        )}
                         <div className="h-px bg-black/[0.05] dark:bg-white/[0.05] my-1 mx-2" />
                         <button
                           onClick={async () => { setProfileOpen(false); await signOut(); }}

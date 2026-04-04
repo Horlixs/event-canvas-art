@@ -10,9 +10,10 @@ interface AuthModalProps {
   onClose: () => void;
   defaultTab?: 'login' | 'signup';
   message?: string;
+  onAuthSuccess?: () => void;
 }
 
-export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab = 'login', message }) => {
+export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab = 'login', message, onAuthSuccess }) => {
   const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
   const [tab, setTab] = useState<'login' | 'signup'>(defaultTab);
   const [email, setEmail] = useState('');
@@ -43,8 +44,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab 
         if (error) {
           setError(error.message);
         } else {
-          onClose();
           resetForm();
+          onClose();
+          if (onAuthSuccess) {
+            // Slight delay to ensure auth state is updated
+            setTimeout(onAuthSuccess, 100);
+          }
         }
       } else {
         if (password.length < 6) {
@@ -70,6 +75,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({ open, onClose, defaultTab 
     setLoading(true);
     try {
       await signInWithGoogle();
+      // Google sign-in redirects the page, so onAuthSuccess will be called after redirect
+      if (onAuthSuccess) {
+        setTimeout(onAuthSuccess, 100);
+      }
     } catch {
       setError('Google sign-in failed. Please try again.');
       setLoading(false);

@@ -31,6 +31,7 @@ import { cn } from '@/lib/utils';
 import { wrapText } from '@/lib/textUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthModal } from '@/components/AuthModal';
+import { useGeneratorState } from '@/hooks/useGeneratorState';
 
 // --- HELPER: Background Image ---
 const BackgroundImage: React.FC<{ src: string; width: number; height: number }> = ({ src, width, height }) => {
@@ -404,6 +405,32 @@ export const Generator: React.FC = () => {
   const [showControls, setShowControls] = useState(true);
   const [isSharing, setIsSharing] = useState(false);
   const [showRegistrationPopup, setShowRegistrationPopup] = useState(false);
+
+  // State persistence hooks
+  const { getSavedGeneratorPath, clearSavedGeneratorPath } = useGeneratorState();
+
+  // Restore user images from sessionStorage on mount
+  useEffect(() => {
+    try {
+      const savedUserImages = sessionStorage.getItem(`generator_images_${slug}`);
+      if (savedUserImages) {
+        setUserImages(JSON.parse(savedUserImages));
+      }
+    } catch (e) {
+      console.error('Failed to restore user images:', e);
+    }
+  }, [slug]);
+
+  // Save user images to sessionStorage whenever they change
+  useEffect(() => {
+    if (Object.keys(userImages).length > 0) {
+      try {
+        sessionStorage.setItem(`generator_images_${slug}`, JSON.stringify(userImages));
+      } catch (e) {
+        console.error('Failed to save user images:', e);
+      }
+    }
+  }, [userImages, slug]);
 
   // 1. Load Template
   useEffect(() => {
@@ -898,6 +925,13 @@ export const Generator: React.FC = () => {
         onClose={() => {
           setShowAuthModal(false);
           pendingDownloadRef.current = false;
+        }}
+        onAuthSuccess={() => {
+          // The user successfully authenticated, trigger download if pending
+          if (pendingDownloadRef.current) {
+            pendingDownloadRef.current = false;
+            setTimeout(() => performDownload(), 300);
+          }
         }}
         message="Sign in to download your design"
       />
