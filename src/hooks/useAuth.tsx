@@ -105,42 +105,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setNeedsPasswordReset(true);
       }
 
-      // Safety net: detect duplicate OAuth accounts that bypassed the trigger
-      if (event === 'SIGNED_IN' && session?.user) {
-        const currentUser = session.user;
-        const provider = currentUser.app_metadata?.provider;
+  // Safety net: detect duplicate OAuth accounts that bypassed the trigger
+  if (event === 'SIGNED_IN' && session?.user) {
+    const params = new URLSearchParams(window.location.search);
+    const authRedirect = params.get('auth_redirect');
+    const encodedReturn = params.get('return_to');
 
-        if (provider === 'google' && currentUser.email) {
-          try {
-            const { data: otherProvider } = await supabase.rpc('check_email_exists_for_other_user', {
-              check_email: currentUser.email,
-              exclude_user_id: currentUser.id,
-            });
+    if (authRedirect === 'true' && encodedReturn) {
+      try {
+        const returnTo = atob(encodedReturn);
 
-            if (otherProvider) {
-              // Duplicate detected — clean up and sign out
-              await supabase.rpc('cleanup_duplicate_user', {
-                target_user_id: currentUser.id,
-                target_email: currentUser.email,
-              });
+        // Clean URL
+        window.history.replaceState(null, '', window.location.pathname);
 
-              await supabase.auth.signOut();
+        // Redirect AFTER session is fully ready
+        setTimeout(() => {
+          window.location.href = returnTo;
+        }, 100);
 
-              const providerLabel = otherProvider === 'email' ? 'email and password' : otherProvider;
-              sessionStorage.setItem(
-                'auth_error',
-                `An account with this email already exists using ${providerLabel}. Please sign in with ${providerLabel} instead.`
-              );
-
-              window.location.href = window.location.origin + '/signin';
-              return;
-            }
-          } catch {
-            // RPC not available yet (migration not applied) — skip safety net
-          }
-        }
+        return; // stop further execution
+      } catch (e) {
+        console.error('Redirect decode failed:', e);
       }
-    });
+    }
+  }
+});
 
     return () => subscription.unsubscribe();
   }, []);
@@ -207,6 +196,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Encode the return URL as a query parameter so it survives cross-domain redirects
     const redirectUrl = returnTo || window.location.href;
     const encodedReturn = btoa(redirectUrl); // Base64 encode to safely pass in URL
+    
+    console.log('🔐 OAuth Debug:');
+    console.log('  Current origin:', window.location.origin);
+    console.log('  Return to URL:', redirectUrl);
+    console.log('  Redirect URI being sent to Supabase:', `${window.location.origin}?auth_redirect=true&return_to=${encodedReturn}`);
     
     await supabase.auth.signInWithOAuth({
       provider: 'google',
