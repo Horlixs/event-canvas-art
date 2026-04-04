@@ -75,15 +75,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setLoading(false);
       
       // Check if we're returning from OAuth redirect
-      if (session?.user && new URLSearchParams(window.location.search).get('auth_redirect') === 'true') {
-        const returnTo = sessionStorage.getItem('auth_return_to');
-        sessionStorage.removeItem('auth_return_to');
-        
-        // Small delay to ensure UI updates, then redirect
-        if (returnTo) {
-          setTimeout(() => {
-            window.location.href = returnTo;
-          }, 100);
+      const params = new URLSearchParams(window.location.search);
+      if (session?.user && params.get('auth_redirect') === 'true') {
+        const encodedReturn = params.get('return_to');
+        if (encodedReturn) {
+          try {
+            const returnTo = atob(encodedReturn); // Base64 decode
+            // Clean up URL
+            window.history.replaceState(null, '', window.location.pathname);
+            // Small delay to ensure UI updates, then redirect
+            setTimeout(() => {
+              window.location.href = returnTo;
+            }, 100);
+          } catch (e) {
+            console.error('Failed to decode return_to parameter:', e);
+          }
         }
       }
     });
@@ -198,13 +204,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async (returnTo?: string) => {
-    // Store the return URL for after OAuth redirect
+    // Encode the return URL as a query parameter so it survives cross-domain redirects
     const redirectUrl = returnTo || window.location.href;
-    sessionStorage.setItem('auth_return_to', redirectUrl);
+    const encodedReturn = btoa(redirectUrl); // Base64 encode to safely pass in URL
     
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}?auth_redirect=true` },
+      options: { redirectTo: `${window.location.origin}?auth_redirect=true&return_to=${encodedReturn}` },
     });
   };
 
