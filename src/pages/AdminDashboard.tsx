@@ -108,103 +108,65 @@ const AdminDashboard: React.FC = () => {
         setTemplates(templatesData);
       }
 
-      // Get all users - try to fetch from a users profile table if it exists
-      let fullUsersList: AdminUser[] = [];
-      
-      const { data: usersData } = await supabase
-        .from('users' as any)
-        .select('id, email, username, created_at') as unknown as { data: any[] | null };
+      // Get all profiles (all registered users - including generation-only users)
+      const { data: profilesData, error: profilesError } = await supabase
+        .from('profiles' as any)
+        .select('id, email, username, created_at') as unknown as { data: any[] | null; error: any };
 
-      if (usersData && usersData.length > 0) {
-        // Create map of users with templates
-        const userStatsMap = new Map<string, AdminUser>();
-
-        if (templatesData) {
-          templatesData.forEach(template => {
-            const userId = template.user_id;
-            const creatorName = template.creator_name || 'User';
-
-            if (!userStatsMap.has(userId)) {
-              userStatsMap.set(userId, {
-                id: userId,
-                email: '',
-                username: creatorName,
-                created_at: template.created_at,
-                template_count: 0,
-                total_views: 0,
-                total_downloads: 0,
-                total_shares: 0,
-              });
-            }
-
-            const userStats = userStatsMap.get(userId)!;
-            userStats.template_count = (userStats.template_count || 0) + 1;
-            userStats.total_views = (userStats.total_views || 0) + template.views;
-            userStats.total_downloads = (userStats.total_downloads || 0) + template.downloads;
-            userStats.total_shares = (userStats.total_shares || 0) + template.shares;
-          });
-        }
-
-        // Build full users list with data from profiles
-        fullUsersList = usersData.map(profileUser => {
-          const existingUser = userStatsMap.get(profileUser.id);
-          return {
-            id: profileUser.id,
-            email: profileUser.email || '',
-            username: existingUser?.username || profileUser.username || 'User',
-            created_at: existingUser?.created_at || profileUser.created_at,
-            template_count: existingUser?.template_count || 0,
-            total_views: existingUser?.total_views || 0,
-            total_downloads: existingUser?.total_downloads || 0,
-            total_shares: existingUser?.total_shares || 0,
-          };
-        });
-      } else {
-        // Fallback: use only template creators
-        const userStatsMap = new Map<string, AdminUser>();
-        const userCreationDates = new Map<string, string>();
-
-        if (templatesData) {
-          templatesData.forEach(template => {
-            const userId = template.user_id;
-            const creatorName = template.creator_name || 'User';
-
-            if (!userCreationDates.has(userId) ||
-              new Date(template.created_at) < new Date(userCreationDates.get(userId)!)) {
-              userCreationDates.set(userId, template.created_at);
-            }
-
-            if (!userStatsMap.has(userId)) {
-              userStatsMap.set(userId, {
-                id: userId,
-                email: '',
-                username: creatorName,
-                created_at: template.created_at,
-                template_count: 0,
-                total_views: 0,
-                total_downloads: 0,
-                total_shares: 0,
-              });
-            }
-
-            const userStats = userStatsMap.get(userId)!;
-            userStats.template_count = (userStats.template_count || 0) + 1;
-            userStats.total_views = (userStats.total_views || 0) + template.views;
-            userStats.total_downloads = (userStats.total_downloads || 0) + template.downloads;
-            userStats.total_shares = (userStats.total_shares || 0) + template.shares;
-          });
-
-          userStatsMap.forEach((user, userId) => {
-            const createdDate = userCreationDates.get(userId);
-            if (createdDate) {
-              user.created_at = createdDate;
-            }
-          });
-        }
-
-        fullUsersList = Array.from(userStatsMap.values());
+      if (profilesError) {
+        console.error('Error fetching profiles:', profilesError);
+        toast.error('Failed to load user profiles');
       }
 
+      // Create map of users with template statistics
+      const userStatsMap = new Map<string, AdminUser>();
+
+      // Initialize all users from profiles table
+      if (profilesData && profilesData.length > 0) {
+        profilesData.forEach(profile => {
+          userStatsMap.set(profile.id, {
+            id: profile.id,
+            email: profile.email || '',
+            username: profile.username || 'User',
+            created_at: profile.created_at,
+            template_count: 0,
+            total_views: 0,
+            total_downloads: 0,
+            total_shares: 0,
+          });
+        });
+      } else {
+        console.warn('No profiles found in database');
+      }
+
+      // Add template statistics to users
+      if (templatesData) {
+        templatesData.forEach(template => {
+          const userId = template.user_id;
+          
+          if (!userStatsMap.has(userId)) {
+            // User created template but not in profiles (shouldn't happen with trigger, but handle it)
+            userStatsMap.set(userId, {
+              id: userId,
+              email: '',
+              username: template.creator_name || 'User',
+              created_at: template.created_at,
+              template_count: 0,
+              total_views: 0,
+              total_downloads: 0,
+              total_shares: 0,
+            });
+          }
+
+          const userStats = userStatsMap.get(userId)!;
+          userStats.template_count = (userStats.template_count || 0) + 1;
+          userStats.total_views = (userStats.total_views || 0) + template.views;
+          userStats.total_downloads = (userStats.total_downloads || 0) + template.downloads;
+          userStats.total_shares = (userStats.total_shares || 0) + template.shares;
+        });
+      }
+
+      const fullUsersList = Array.from(userStatsMap.values());
       setAllUsers(fullUsersList);
       setUsers(fullUsersList.filter(u => (u.template_count || 0) > 0));
 
