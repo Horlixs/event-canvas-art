@@ -9,6 +9,7 @@ interface ImageCropperProps {
   aspectRatio: number;
   onCropComplete: (croppedImageUrl: string) => void;
   onCancel: () => void;
+  isCircle?: boolean;
 }
 
 function centerAspectCrop(
@@ -36,6 +37,7 @@ export const ImageCropper: React.FC<ImageCropperProps> = ({
   aspectRatio,
   onCropComplete,
   onCancel,
+  isCircle = false,
 }) => {
   const [crop, setCrop] = useState<Crop>();
   const [completedCrop, setCompletedCrop] = useState<PixelCrop>();

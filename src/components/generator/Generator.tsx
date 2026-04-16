@@ -68,8 +68,7 @@ const URLImageShape: React.FC<{
 
     let sw = 0, sh = 0;
     if (element.type === 'circle' || element.type === 'polygon') {
-      sw = element.radius * 2;
-      sh = element.radius * 2;
+      return null; // Don't use pattern fill for circles/polygons
     } else if ('width' in element && 'height' in element) {
       sw = element.width;
       sh = element.height;
@@ -86,6 +85,27 @@ const URLImageShape: React.FC<{
       fillPatternScaleY: scale,
       fillPatternOffsetX: ox / scale,
       fillPatternOffsetY: oy / scale,
+    };
+  }, [image, src, element]);
+
+  // For circles, calculate image scaling and centering
+  const circleImageProps = useMemo(() => {
+    if (!image || !src || element.type !== 'circle') return null;
+
+    const diameter = element.radius * 2;
+    // Use Math.max to cover full circle diameter, clipping will hide overflow
+    const scale = Math.max(diameter / image.width, diameter / image.height);
+    const scaledWidth = image.width * scale;
+    const scaledHeight = image.height * scale;
+
+    return {
+      image,
+      width: scaledWidth,
+      height: scaledHeight,
+      x: -scaledWidth / 2,
+      y: -scaledHeight / 2,
+      scaleX: 1,
+      scaleY: 1,
     };
   }, [image, src, element]);
 
@@ -112,12 +132,26 @@ const URLImageShape: React.FC<{
         />
       )}
       {element.type === 'circle' && (
-        <Circle
-          radius={element.radius}
-          listening={element.isPlaceholder}
-          {...shapeFill}
-          {...shapeStroke}
-        />
+        <Group
+          clipFunc={(ctx) => {
+            ctx.beginPath();
+            ctx.arc(0, 0, element.radius, 0, Math.PI * 2);
+            ctx.closePath();
+          }}
+        >
+          {circleImageProps && circleImageProps.image ? (
+            <KonvaImage
+              {...circleImageProps}
+              listening={false}
+            />
+          ) : null}
+          <Circle
+            radius={element.radius}
+            listening={element.isPlaceholder}
+            fill={circleImageProps ? 'transparent' : (shapeFill.fill || 'transparent')}
+            {...shapeStroke}
+          />
+        </Group>
       )}
       {element.type === 'polygon' && (() => {
         const sides = (element as any).sides || 6;
@@ -548,23 +582,18 @@ export const Generator: React.FC = () => {
 
   const { user } = useAuth();
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const pendingDownloadRef = useRef(false);
   const [dummmyLogo] = useImage('/favicon.ico');
-
-  // When user signs in via auth modal, auto-trigger download
-  useEffect(() => {
-    if (user && pendingDownloadRef.current) {
-      pendingDownloadRef.current = false;
-      setShowAuthModal(false);
-      // Small delay to let modal close
-      setTimeout(() => performDownload(), 300);
-    }
-  }, [user]);
 
   const SITE_NAME = 'Dummmy';
   const SITE_URL = window.location.origin;
 
   const performDownload = useCallback(async () => {
+    // Safety check: ensure user is authenticated before allowing download
+    if (!user) {
+      toast.error('Please sign in to download');
+      return;
+    }
+    
     if (!stageRef.current) return;
     try {
       const uri = stageRef.current.toDataURL({ pixelRatio: 2, mimeType: 'image/png' });
@@ -606,11 +635,10 @@ export const Generator: React.FC = () => {
       console.error(e);
       toast.error('Could not generate image.');
     }
-  }, [slug, template, elements]);
+  }, [slug, template, elements, user]);
 
   const handleDownload = useCallback(() => {
     if (!user) {
-      pendingDownloadRef.current = true;
       setShowAuthModal(true);
       return;
     }
@@ -913,6 +941,7 @@ export const Generator: React.FC = () => {
           <ImageCropper
             imageSrc={imageToCrop}
             aspectRatio={currentCroppingId ? getPlaceholderAspectRatio(currentCroppingId) : 1}
+            isCircle={currentCroppingId ? elements.find(e => e.id === currentCroppingId)?.type === 'circle' : false}
             onCropComplete={handleCropComplete}
             onCancel={() => setImageToCrop(null)}
           />
@@ -924,14 +953,6 @@ export const Generator: React.FC = () => {
         open={showAuthModal}
         onClose={() => {
           setShowAuthModal(false);
-          pendingDownloadRef.current = false;
-        }}
-        onAuthSuccess={() => {
-          // The user successfully authenticated, trigger download if pending
-          if (pendingDownloadRef.current) {
-            pendingDownloadRef.current = false;
-            setTimeout(() => performDownload(), 300);
-          }
         }}
         message="Sign in to download your design"
       />

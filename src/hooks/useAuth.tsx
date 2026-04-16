@@ -36,8 +36,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
-  // On mount: check for OAuth errors in URL hash and sessionStorage
+  // On mount: check for OAuth return and redirect immediately if returning from OAuth
   useEffect(() => {
+    // Check if we're returning from OAuth with a stored return URL and active session
+    // Do this BEFORE error checking so we can redirect immediately
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session?.user) {
+        const storedReturnTo = sessionStorage.getItem('oauth_return_to');
+        if (storedReturnTo) {
+          try {
+            const returnTo = atob(storedReturnTo);
+            sessionStorage.removeItem('oauth_return_to');
+            window.history.replaceState(null, '', window.location.pathname);
+            // Redirect immediately to bypass homepage
+            window.location.href = returnTo;
+            return; // Stop further execution
+          } catch (e) {
+            console.error('Failed to redirect from OAuth:', e);
+            sessionStorage.removeItem('oauth_return_to');
+          }
+        }
+      }
+    });
+
     const hash = window.location.hash;
     if (hash) {
       const params = new URLSearchParams(hash.substring(1));
@@ -65,6 +86,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setTimeout(() => toast.error(storedError), 300);
       sessionStorage.removeItem('auth_error');
     }
+
+    // Store return_to from query params for later use (survives OAuth redirects)
+    const searchParams = new URLSearchParams(window.location.search);
+    const returnTo = searchParams.get('return_to');
+    if (returnTo) {
+      try {
+        sessionStorage.setItem('oauth_return_to', returnTo);
+      } catch (e) {
+        console.error('Failed to store return_to:', e);
+      }
+    }
   }, []);
 
   useEffect(() => {
@@ -73,25 +105,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSession(session);
       setUser(session?.user ?? null);
       setLoading(false);
-      
-      // Check if we're returning from OAuth redirect
-      const params = new URLSearchParams(window.location.search);
-      if (session?.user && params.get('auth_redirect') === 'true') {
-        const encodedReturn = params.get('return_to');
-        if (encodedReturn) {
-          try {
-            const returnTo = atob(encodedReturn); // Base64 decode
-            // Clean up URL
-            window.history.replaceState(null, '', window.location.pathname);
-            // Small delay to ensure UI updates, then redirect
-            setTimeout(() => {
-              window.location.href = returnTo;
-            }, 100);
-          } catch (e) {
-            console.error('Failed to decode return_to parameter:', e);
-          }
-        }
-      }
     });
 
     // Listen for auth changes
@@ -104,32 +117,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (event === 'PASSWORD_RECOVERY') {
         setNeedsPasswordReset(true);
       }
-
-  // Safety net: detect duplicate OAuth accounts that bypassed the trigger
-  if (event === 'SIGNED_IN' && session?.user) {
-    const params = new URLSearchParams(window.location.search);
-    const authRedirect = params.get('auth_redirect');
-    const encodedReturn = params.get('return_to');
-
-    if (authRedirect === 'true' && encodedReturn) {
-      try {
-        const returnTo = atob(encodedReturn);
-
-        // Clean URL
-        window.history.replaceState(null, '', window.location.pathname);
-
-        // Redirect AFTER session is fully ready
-        setTimeout(() => {
-          window.location.href = returnTo;
-        }, 100);
-
-        return; // stop further execution
-      } catch (e) {
-        console.error('Redirect decode failed:', e);
-      }
-    }
-  }
-});
+    });
 
     return () => subscription.unsubscribe();
   }, []);
@@ -193,18 +181,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signInWithGoogle = async (returnTo?: string) => {
-    // Encode the return URL as a query parameter so it survives cross-domain redirects
+    // Encode and store the return URL in session storage so it survives the OAuth redirect
     const redirectUrl = returnTo || window.location.href;
-    const encodedReturn = btoa(redirectUrl); // Base64 encode to safely pass in URL
+    const encodedReturn = btoa(redirectUrl); // Base64 encode to safely pass in storage
+    
+    try {
+      sessionStorage.setItem('oauth_return_to', encodedReturn);
+    } catch (e) {
+      console.error('Failed to store return URL:', e);
+    }
     
     console.log('🔐 OAuth Debug:');
     console.log('  Current origin:', window.location.origin);
     console.log('  Return to URL:', redirectUrl);
-    console.log('  Redirect URI being sent to Supabase:', `${window.location.origin}?auth_redirect=true&return_to=${encodedReturn}`);
+    console.log('  Encoded and stored for redirect after auth');
     
     await supabase.auth.signInWithOAuth({
       provider: 'google',
-      options: { redirectTo: `${window.location.origin}?auth_redirect=true&return_to=${encodedReturn}` },
+      options: { 
+        redirectTo: `${window.location.origin}`,
+      },
     });
   };
 
