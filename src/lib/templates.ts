@@ -163,6 +163,8 @@ export const getTemplateBySlug = async (slug: string): Promise<TemplateData | nu
     backgroundImage: data.background_image,
     registrationLink: (data as any).registration_link || undefined,
     eventName: (data as any).event_name || undefined,
+    user_id: data.user_id || null,
+    deleted_at: (data as any).deleted_at || null,
   };
 };
 
@@ -242,15 +244,245 @@ export const getTemplateStats = async (slug: string): Promise<TemplateStats> => 
   }
 };
 
-export const getUserTemplatesWithStats = async (userId: string) => {
-  const { data, error } = await supabase
-    .from('templates' as any)
-    .select('id, slug, custom_slug, name, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares, registration_link')
-    .eq('user_id', userId)
-    .order('updated_at', { ascending: false }) as any;
+export interface TemplateRow {
+  id: string;
+  slug: string;
+  custom_slug?: string | null;
+  name: string;
+  is_private?: boolean;
+  canvas_width: number;
+  canvas_height: number;
+  background_color: string;
+  background_image?: string | null;
+  created_at: string;
+  updated_at: string;
+  views: number;
+  downloads: number;
+  shares: number;
+  registration_link?: string | null;
+  user_id?: string | null;
+  creator_name?: string | null;
+  deleted_at?: string | null;
+}
 
-  if (error || !data) return [];
-  return data;
+export const getUserTemplatesWithStats = async (userId: string): Promise<TemplateRow[]> => {
+  try {
+    let { data, error } = await supabase
+      .from('templates' as any)
+      .select('id, slug, custom_slug, name, is_private, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares, registration_link, deleted_at, user_id, creator_name')
+      .eq('user_id', userId)
+      .is('deleted_at', null)
+      .order('updated_at', { ascending: false }) as any;
+
+    if (error?.code === '42703') {
+      // Column deleted_at not yet created - fallback to without deleted_at
+      const fallback = await supabase
+        .from('templates' as any)
+        .select('id, slug, custom_slug, name, is_private, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares, registration_link, user_id, creator_name')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false }) as any;
+      data = fallback.data;
+    }
+
+    if (!data) return [];
+    return data.filter((t: any) => !t.deleted_at);
+  } catch (e) {
+    console.error('Error in getUserTemplatesWithStats:', e);
+    return [];
+  }
+};
+
+/** Get templates moved to trash for a specific user */
+export const getUserTrashedTemplates = async (userId: string): Promise<TemplateRow[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('templates' as any)
+      .select('id, slug, custom_slug, name, is_private, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares, registration_link, deleted_at, user_id, creator_name')
+      .eq('user_id', userId)
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false }) as any;
+
+    if (error || !data) return [];
+    return data;
+  } catch (e) {
+    console.error('Error in getUserTrashedTemplates:', e);
+    return [];
+  }
+};
+
+/** Get all trashed templates across the platform (for admins) */
+export const getAllTrashedTemplates = async (): Promise<TemplateRow[]> => {
+  try {
+    const { data, error } = await supabase
+      .from('templates' as any)
+      .select('id, slug, custom_slug, name, is_private, canvas_width, canvas_height, background_color, background_image, created_at, updated_at, views, downloads, shares, registration_link, deleted_at, user_id, creator_name')
+      .not('deleted_at', 'is', null)
+      .order('deleted_at', { ascending: false }) as any;
+
+    if (error || !data) return [];
+    return data;
+  } catch (e) {
+    console.error('Error in getAllTrashedTemplates:', e);
+    return [];
+  }
+};
+
+/** Calculate how many days remaining in trash before 30-day auto-purge */
+export const getDaysRemainingInTrash = (deletedAt?: string | null): number => {
+  if (!deletedAt) return 30;
+  const deletedTime = new Date(deletedAt).getTime();
+  const now = Date.now();
+  const elapsedMs = Math.max(0, now - deletedTime);
+  const elapsedDays = Math.floor(elapsedMs / (1000 * 60 * 60 * 24));
+  return Math.max(0, 30 - elapsedDays);
+};
+
+/** Move a template to trash (soft delete) */
+export const softDeleteTemplate = async (
+  templateId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // 1. Try calling the SECURITY DEFINER RPC first (handles owner and admin permissions bypass)
+    const { error: rpcError } = await (supabase.rpc as any)('soft_delete_template', {
+      p_template_id: templateId,
+    });
+
+    if (!rpcError) {
+      return { success: true };
+    }
+
+    // 2. If RPC is not found or fails, try direct update with deleted_at
+    const nowIso = new Date().toISOString();
+    const { error: updateError } = await supabase
+      .from('templates' as any)
+      .update({ deleted_at: nowIso } as any)
+      .eq('id', templateId);
+
+    if (!updateError) {
+      return { success: true };
+    }
+
+    // 3. If column deleted_at doesn't exist (error 42703), fall back to hard delete
+    if (updateError.code === '42703') {
+      const { error: deleteError } = await supabase
+        .from('templates' as any)
+        .delete()
+        .eq('id', templateId);
+
+      if (!deleteError) return { success: true };
+      return { success: false, error: deleteError.message };
+    }
+
+    return { success: false, error: updateError.message };
+  } catch (err: any) {
+    console.error('Error in softDeleteTemplate:', err);
+    return { success: false, error: err?.message || 'Failed to move template to trash' };
+  }
+};
+
+/** Restore a template from trash */
+export const restoreTemplate = async (
+  templateId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // 1. Try calling the SECURITY DEFINER RPC first
+    const { error: rpcError } = await (supabase.rpc as any)('restore_template', {
+      p_template_id: templateId,
+    });
+
+    if (!rpcError) {
+      return { success: true };
+    }
+
+    // 2. Fallback: direct update
+    const { error: updateError } = await supabase
+      .from('templates' as any)
+      .update({ deleted_at: null } as any)
+      .eq('id', templateId);
+
+    if (!updateError) {
+      return { success: true };
+    }
+
+    return { success: false, error: updateError.message };
+  } catch (err: any) {
+    console.error('Error in restoreTemplate:', err);
+    return { success: false, error: err?.message || 'Failed to restore template' };
+  }
+};
+
+/** Permanently delete a template immediately */
+export const permanentDeleteTemplate = async (
+  templateId: string
+): Promise<{ success: boolean; error?: string }> => {
+  try {
+    // 1. Try calling the SECURITY DEFINER RPC first
+    const { error: rpcError } = await (supabase.rpc as any)('permanent_delete_template', {
+      p_template_id: templateId,
+    });
+
+    if (!rpcError) {
+      return { success: true };
+    }
+
+    // 2. Fallback: direct delete
+    const { error: deleteError } = await supabase
+      .from('templates' as any)
+      .delete()
+      .eq('id', templateId);
+
+    if (!deleteError) {
+      return { success: true };
+    }
+
+    return { success: false, error: deleteError.message };
+  } catch (err: any) {
+    console.error('Error in permanentDeleteTemplate:', err);
+    return { success: false, error: err?.message || 'Failed to permanently delete template' };
+  }
+};
+
+/** Empty trash for current user or admin */
+export const emptyTrash = async (
+  isAdmin?: boolean,
+  userId?: string
+): Promise<{ success: boolean; count?: number; error?: string }> => {
+  try {
+    const { data, error: rpcError } = await (supabase.rpc as any)('empty_trash');
+    if (!rpcError) {
+      return { success: true, count: typeof data === 'number' ? data : undefined };
+    }
+
+    // Fallback: direct delete
+    let query = supabase.from('templates' as any).delete().not('deleted_at', 'is', null);
+    if (!isAdmin && userId) {
+      query = (query as any).eq('user_id', userId);
+    }
+    const { error: delError } = await query;
+    if (!delError) return { success: true };
+    return { success: false, error: delError.message };
+  } catch (err: any) {
+    return { success: false, error: err?.message || 'Failed to empty trash' };
+  }
+};
+
+/** Purge all templates trashed more than 30 days ago */
+export const purgeExpiredTrash = async (): Promise<void> => {
+  try {
+    // Try RPC
+    const { error } = await (supabase.rpc as any)('purge_expired_trash');
+    if (!error) return;
+
+    // Fallback: direct delete where deleted_at < 30 days ago
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    await supabase
+      .from('templates' as any)
+      .delete()
+      .not('deleted_at', 'is', null)
+      .lt('deleted_at', thirtyDaysAgo);
+  } catch {
+    // Non-critical background task
+  }
 };
 
 export const getTemplateFullData = async (slug: string) => {
@@ -290,6 +522,7 @@ export interface PublicTemplate {
   shares: number;
   created_at: string;
   creator_name: string | null;
+  deleted_at?: string | null;
 }
 
 /** Fetch the N most recent public templates. */
@@ -298,14 +531,29 @@ export const getRecentTemplates = async (limit = 3): Promise<PublicTemplate[]> =
   return all.slice(0, limit);
 };
 
-/** Fetch all public templates ordered by most recent. */
+/** Fetch all public templates ordered by most recent (excludes trashed). */
 export const getAllPublicTemplates = async (): Promise<PublicTemplate[]> => {
-  const { data, error } = await supabase
-    .from('templates' as any)
-    .select('id, slug, custom_slug, name, is_private, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name')
-    .eq('is_private', false)
-    .order('created_at', { ascending: false }) as unknown as { data: PublicTemplate[] | null; error: any };
+  try {
+    let { data, error } = await supabase
+      .from('templates' as any)
+      .select('id, slug, custom_slug, name, is_private, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name, deleted_at')
+      .eq('is_private', false)
+      .is('deleted_at', null)
+      .order('created_at', { ascending: false }) as unknown as { data: PublicTemplate[] | null; error: any };
 
-  if (error || !data) return [];
-  return data;
+    if (error?.code === '42703') {
+      const fallback = await supabase
+        .from('templates' as any)
+        .select('id, slug, custom_slug, name, is_private, background_color, background_image, canvas_width, canvas_height, views, downloads, shares, created_at, creator_name')
+        .eq('is_private', false)
+        .order('created_at', { ascending: false }) as unknown as { data: PublicTemplate[] | null; error: any };
+      data = fallback.data;
+    }
+
+    if (error || !data) return [];
+    return data.filter(t => !t.deleted_at);
+  } catch {
+    return [];
+  }
 };
+

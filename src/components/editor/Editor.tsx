@@ -176,6 +176,10 @@ export const Editor: React.FC = () => {
     const loadTemplate = async () => {
       const data = await getTemplateBySlug(editSlug);
       if (data) {
+        if (data.deleted_at) {
+          toast.error('This template is in the trash. Please restore it before editing.');
+          return;
+        }
         clearSavedState();
         importTemplate({
           elements: data.elements,

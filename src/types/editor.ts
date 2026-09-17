@@ -102,4 +102,6 @@ export interface TemplateData {
   // 2. USE THE UNION TYPE HERE (Not HTMLCanvasElement)
   elements: CanvasElement[]; 
   thumbnail?: string;
+  user_id?: string | null;
+  deleted_at?: string | null;
 }

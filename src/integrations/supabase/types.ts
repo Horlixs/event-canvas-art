@@ -35,6 +35,7 @@ export type Database = {
           updated_at: string
           user_id: string | null
           views: number
+          deleted_at: string | null
         }
         Insert: {
           background_color?: string
@@ -56,6 +57,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           views?: number
+          deleted_at?: string | null
         }
         Update: {
           background_color?: string
@@ -77,6 +79,7 @@ export type Database = {
           updated_at?: string
           user_id?: string | null
           views?: number
+          deleted_at?: string | null
         }
         Relationships: []
       }
@@ -104,6 +107,32 @@ export type Database = {
           lookup_email: string
         }
         Returns: string | null
+      }
+      soft_delete_template: {
+        Args: {
+          p_template_id: string
+        }
+        Returns: boolean
+      }
+      restore_template: {
+        Args: {
+          p_template_id: string
+        }
+        Returns: boolean
+      }
+      permanent_delete_template: {
+        Args: {
+          p_template_id: string
+        }
+        Returns: boolean
+      }
+      purge_expired_trash: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
+      empty_trash: {
+        Args: Record<PropertyKey, never>
+        Returns: number
       }
     }
     Enums: {

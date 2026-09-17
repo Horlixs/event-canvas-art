@@ -7,11 +7,19 @@ import {
   Users, LayoutGrid, LogOut, Loader2, Trash2, Shield,
   BarChart3, TrendingUp, Eye, Download, Share2, Search,
   ChevronLeft, AlertCircle, X, Calendar, User as UserIcon,
-  ArrowUpRight, ArrowDownLeft
+  ArrowUpRight, ArrowDownLeft, RotateCcw
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import {
+  softDeleteTemplate,
+  restoreTemplate,
+  permanentDeleteTemplate,
+  emptyTrash,
+  purgeExpiredTrash,
+  getDaysRemainingInTrash
+} from '@/lib/templates';
 
 interface AdminTemplate {
   id: string;
@@ -30,6 +38,7 @@ interface AdminTemplate {
   canvas_height?: number;
   created_at: string;
   updated_at: string;
+  deleted_at?: string | null;
 }
 
 interface AdminUser {
@@ -53,9 +62,10 @@ interface SiteStats {
 const AdminDashboard: React.FC = () => {
   const { user, signOut, loading: authLoading } = useAuth();
   const navigate = useNavigate();
-  const [tab, setTab] = useState<'overview' | 'users' | 'templates'>('overview');
+  const [tab, setTab] = useState<'overview' | 'users' | 'templates' | 'trash'>('overview');
   const [userTab, setUserTab] = useState<'all' | 'with-templates' | 'without-templates'>('all');
   const [templates, setTemplates] = useState<AdminTemplate[]>([]);
+  const [trashedTemplates, setTrashedTemplates] = useState<AdminTemplate[]>([]);
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [allUsers, setAllUsers] = useState<AdminUser[]>([]);
   const [stats, setStats] = useState<SiteStats>({
@@ -98,15 +108,32 @@ const AdminDashboard: React.FC = () => {
     try {
       setLoading(true);
 
-      // Get all templates with creator name
-      const { data: templatesData, error: templatesError } = await supabase
-        .from('templates' as any)
-        .select('id, slug, custom_slug, name, creator_name, event_name, user_id, views, downloads, shares, is_private, background_image, canvas_width, canvas_height, created_at, updated_at')
-        .order('created_at', { ascending: false }) as unknown as { data: AdminTemplate[] | null; error: any };
+      // Background purge of expired trash (>30 days)
+      purgeExpiredTrash();
 
-      if (!templatesError && templatesData) {
-        setTemplates(templatesData);
+      // Get all templates with creator name and deleted_at
+      let templatesData: AdminTemplate[] | null = null;
+      const { data: rawTemplates, error: templatesError } = await supabase
+        .from('templates' as any)
+        .select('id, slug, custom_slug, name, creator_name, event_name, user_id, views, downloads, shares, is_private, background_image, canvas_width, canvas_height, created_at, updated_at, deleted_at')
+        .order('created_at', { ascending: false }) as any;
+
+      if (templatesError?.code === '42703') {
+        const fallback = await supabase
+          .from('templates' as any)
+          .select('id, slug, custom_slug, name, creator_name, event_name, user_id, views, downloads, shares, is_private, background_image, canvas_width, canvas_height, created_at, updated_at')
+          .order('created_at', { ascending: false }) as any;
+        templatesData = fallback.data;
+      } else {
+        templatesData = rawTemplates;
       }
+
+      const allTmpls: AdminTemplate[] = templatesData || [];
+      const activeList = allTmpls.filter(t => !t.deleted_at);
+      const trashedList = allTmpls.filter(t => !!t.deleted_at);
+
+      setTemplates(activeList);
+      setTrashedTemplates(trashedList);
 
       // Get all profiles (all registered users - including generation-only users)
       const { data: profilesData, error: profilesError } = await supabase
@@ -135,47 +162,42 @@ const AdminDashboard: React.FC = () => {
             total_shares: 0,
           });
         });
-      } else {
-        console.warn('No profiles found in database');
       }
 
-      // Add template statistics to users
-      if (templatesData) {
-        templatesData.forEach(template => {
-          const userId = template.user_id;
-          
-          if (!userStatsMap.has(userId)) {
-            // User created template but not in profiles (shouldn't happen with trigger, but handle it)
-            userStatsMap.set(userId, {
-              id: userId,
-              email: '',
-              username: template.creator_name || 'User',
-              created_at: template.created_at,
-              template_count: 0,
-              total_views: 0,
-              total_downloads: 0,
-              total_shares: 0,
-            });
-          }
+      // Add template statistics to users (computed from active templates)
+      activeList.forEach(template => {
+        const userId = template.user_id;
+        
+        if (!userStatsMap.has(userId)) {
+          userStatsMap.set(userId, {
+            id: userId,
+            email: '',
+            username: template.creator_name || 'User',
+            created_at: template.created_at,
+            template_count: 0,
+            total_views: 0,
+            total_downloads: 0,
+            total_shares: 0,
+          });
+        }
 
-          const userStats = userStatsMap.get(userId)!;
-          userStats.template_count = (userStats.template_count || 0) + 1;
-          userStats.total_views = (userStats.total_views || 0) + template.views;
-          userStats.total_downloads = (userStats.total_downloads || 0) + template.downloads;
-          userStats.total_shares = (userStats.total_shares || 0) + template.shares;
-        });
-      }
+        const userStats = userStatsMap.get(userId)!;
+        userStats.template_count = (userStats.template_count || 0) + 1;
+        userStats.total_views = (userStats.total_views || 0) + template.views;
+        userStats.total_downloads = (userStats.total_downloads || 0) + template.downloads;
+        userStats.total_shares = (userStats.total_shares || 0) + template.shares;
+      });
 
       const fullUsersList = Array.from(userStatsMap.values());
       setAllUsers(fullUsersList);
       setUsers(fullUsersList.filter(u => (u.template_count || 0) > 0));
 
-      // Calculate stats
+      // Calculate stats based on active templates
       setStats({
         totalUsers: fullUsersList.length,
-        totalTemplates: templatesData?.length || 0,
-        totalViews: templatesData?.reduce((sum, t) => sum + (t.views || 0), 0) || 0,
-        totalDownloads: templatesData?.reduce((sum, t) => sum + (t.downloads || 0), 0) || 0,
+        totalTemplates: activeList.length,
+        totalViews: activeList.reduce((sum, t) => sum + (t.views || 0), 0),
+        totalDownloads: activeList.reduce((sum, t) => sum + (t.downloads || 0), 0),
       });
     } catch (error) {
       console.error('Error loading admin data:', error);
@@ -186,28 +208,94 @@ const AdminDashboard: React.FC = () => {
   };
 
   const handleDeleteTemplate = async (templateId: string) => {
-    if (!confirm('Are you sure you want to delete this template?')) return;
+    if (!confirm('Move this template to trash? It will be removed across the platform and permanently deleted after 30 days.')) return;
 
     try {
       setDeletingId(templateId);
-      const { error } = await supabase
-        .from('templates' as any)
-        .delete()
-        .eq('id', templateId);
+      const { success, error } = await softDeleteTemplate(templateId);
 
-      if (error) {
-        toast.error('Failed to delete template');
+      if (!success) {
+        toast.error(error || 'Failed to move template to trash');
         return;
       }
 
+      const item = templates.find(t => t.id === templateId) || selectedTemplate;
       setTemplates(prev => prev.filter(t => t.id !== templateId));
-      toast.success('Template deleted successfully');
+      if (item) {
+        setTrashedTemplates(prev => [{ ...item, deleted_at: new Date().toISOString() }, ...prev]);
+      }
+      toast.success('Template moved to trash successfully');
       setSelectedTemplate(null);
     } catch (error) {
       console.error('Error deleting template:', error);
+      toast.error('Failed to move template to trash');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handleRestoreTemplate = async (templateId: string) => {
+    try {
+      setDeletingId(templateId);
+      const { success, error } = await restoreTemplate(templateId);
+
+      if (!success) {
+        toast.error(error || 'Failed to restore template');
+        return;
+      }
+
+      const item = trashedTemplates.find(t => t.id === templateId) || selectedTemplate;
+      setTrashedTemplates(prev => prev.filter(t => t.id !== templateId));
+      if (item) {
+        setTemplates(prev => [{ ...item, deleted_at: null }, ...prev]);
+      }
+      toast.success('Template restored successfully');
+      setSelectedTemplate(null);
+    } catch (error) {
+      console.error('Error restoring template:', error);
+      toast.error('Failed to restore template');
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  const handlePermanentDelete = async (templateId: string) => {
+    if (!confirm('Permanently delete this template? This cannot be undone.')) return;
+
+    try {
+      setDeletingId(templateId);
+      const { success, error } = await permanentDeleteTemplate(templateId);
+
+      if (!success) {
+        toast.error(error || 'Failed to permanently delete template');
+        return;
+      }
+
+      setTrashedTemplates(prev => prev.filter(t => t.id !== templateId));
+      setTemplates(prev => prev.filter(t => t.id !== templateId));
+      toast.success('Template permanently deleted');
+      setSelectedTemplate(null);
+    } catch (error) {
+      console.error('Error permanently deleting template:', error);
       toast.error('Failed to delete template');
     } finally {
       setDeletingId(null);
+    }
+  };
+
+  const handleEmptyAllTrash = async () => {
+    if (!confirm(`Permanently delete all ${trashedTemplates.length} trashed template(s) across the platform? This cannot be undone.`)) return;
+
+    try {
+      const { success, error } = await emptyTrash(true);
+      if (!success) {
+        toast.error(error || 'Failed to empty trash');
+        return;
+      }
+      setTrashedTemplates([]);
+      toast.success('Platform trash emptied successfully');
+    } catch {
+      toast.error('Failed to empty trash');
     }
   };
 
@@ -335,18 +423,29 @@ const AdminDashboard: React.FC = () => {
       <div className="flex-1 overflow-auto">
         {/* TABS */}
         <div className="sticky top-0 z-10 border-b border-black/5 dark:border-white/5 bg-white/50 dark:bg-[#1c1c1e]/50 backdrop-blur-md px-6 flex gap-8">
-          {['overview', 'users', 'templates'].map(t => (
+          {['overview', 'users', 'templates', 'trash'].map(t => (
             <button
               key={t}
               onClick={() => setTab(t as any)}
               className={cn(
-                'py-4 text-[13px] font-medium border-b-2 transition-all',
+                'py-4 text-[13px] font-medium border-b-2 transition-all flex items-center gap-2',
                 tab === t
                   ? 'text-[#1d1d1f] dark:text-[#f5f5f7] border-blue-500'
                   : 'text-[#86868b] border-transparent hover:border-black/10 dark:hover:border-white/10'
               )}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {t === 'trash' ? (
+                <>
+                  <span>Trash</span>
+                  {trashedTemplates.length > 0 && (
+                    <span className="text-[10px] bg-red-500/10 text-red-500 px-2 py-0.5 rounded-full font-bold">
+                      {trashedTemplates.length}
+                    </span>
+                  )}
+                </>
+              ) : (
+                t.charAt(0).toUpperCase() + t.slice(1)
+              )}
             </button>
           ))}
         </div>
@@ -684,6 +783,152 @@ const AdminDashboard: React.FC = () => {
               )}
             </motion.div>
           )}
+
+          {/* TRASH TAB */}
+          {tab === 'trash' && (
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="space-y-6"
+            >
+              {/* Top Banner */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-5 rounded-2xl bg-amber-500/10 border border-amber-500/20 text-amber-700 dark:text-amber-400">
+                <div className="flex items-start gap-3">
+                  <AlertCircle size={20} className="shrink-0 mt-0.5 text-amber-500" />
+                  <div>
+                    <h2 className="text-[15px] font-bold">Platform Trash (30-Day Auto-Purge)</h2>
+                    <p className="text-[12px] opacity-90 mt-0.5">
+                      Templates deleted by anyone (admins or creators) are kept here for 30 days before being permanently deleted. Admins can restore or permanently delete any template.
+                    </p>
+                  </div>
+                </div>
+                {trashedTemplates.length > 0 && (
+                  <Button
+                    onClick={handleEmptyAllTrash}
+                    variant="outline"
+                    className="shrink-0 border-red-500/30 text-red-600 dark:text-red-400 hover:bg-red-500/10 text-[12px]"
+                  >
+                    <Trash2 size={14} className="mr-1.5" />
+                    Empty Platform Trash
+                  </Button>
+                )}
+              </div>
+
+              {/* Search */}
+              <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                <div className="relative w-full sm:w-80">
+                  <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#86868b]" />
+                  <input
+                    type="text"
+                    placeholder="Search trashed templates..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="w-full pl-9 pr-4 py-2 rounded-xl bg-black/[0.03] dark:bg-white/[0.05] border border-black/5 dark:border-white/10 text-[13px] placeholder:text-[#86868b] focus:outline-none focus:border-blue-500"
+                  />
+                </div>
+                <div className="text-[12px] text-[#86868b]">
+                  {trashedTemplates.length} trashed template{trashedTemplates.length !== 1 ? 's' : ''}
+                </div>
+              </div>
+
+              {/* Grid */}
+              {trashedTemplates.length === 0 ? (
+                <div className="text-center py-16 p-8 rounded-2xl bg-white dark:bg-[#1c1c1e] border border-black/5 dark:border-white/10">
+                  <Trash2 size={36} className="mx-auto text-[#86868b]/30 mb-3" />
+                  <p className="font-semibold text-[15px] mb-1">Platform trash is empty</p>
+                  <p className="text-[13px] text-[#86868b]">No templates have been deleted.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {trashedTemplates
+                    .filter(t =>
+                      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      t.slug.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                      (t.creator_name && t.creator_name.toLowerCase().includes(searchQuery.toLowerCase()))
+                    )
+                    .map((t, i) => {
+                      const daysLeft = getDaysRemainingInTrash(t.deleted_at);
+                      return (
+                        <motion.div
+                          key={t.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: i * 0.03 }}
+                          onClick={() => setSelectedTemplate(t)}
+                          className="group relative rounded-2xl overflow-hidden bg-white dark:bg-[#1c1c1e] border border-black/5 dark:border-white/10 hover:border-blue-500/20 transition-all cursor-pointer shadow-sm hover:shadow-md"
+                        >
+                          {/* Thumbnail */}
+                          <div className="aspect-[4/3] bg-black/5 dark:bg-white/5 relative overflow-hidden opacity-75">
+                            {t.background_image ? (
+                              <img
+                                src={t.background_image}
+                                alt={t.name}
+                                className="w-full h-full object-cover grayscale"
+                                loading="lazy"
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[#86868b]/30">
+                                <LayoutGrid size={32} />
+                              </div>
+                            )}
+                            <div className="absolute top-3 right-3">
+                              <span className={cn(
+                                "px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider shadow-sm",
+                                daysLeft <= 5 ? "bg-red-500 text-white" : "bg-black/70 text-white"
+                              )}>
+                                {daysLeft}d left
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Content */}
+                          <div className="p-4">
+                            <h3 className="font-semibold text-sm mb-1 line-clamp-2">{t.name}</h3>
+                            {t.creator_name && (
+                              <p className="text-[11px] text-blue-600 dark:text-blue-400 mb-2 truncate">
+                                Creator: {t.creator_name}
+                              </p>
+                            )}
+                            <p className="text-[10px] text-[#86868b] mb-4">
+                              Deleted: {t.deleted_at ? new Date(t.deleted_at).toLocaleDateString() : 'recently'}
+                            </p>
+
+                            <div className="flex items-center gap-2 pt-2 border-t border-black/5 dark:border-white/5">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleRestoreTemplate(t.id);
+                                }}
+                                disabled={deletingId === t.id}
+                                className="flex-1 h-8 rounded-xl text-[12px] text-blue-600 dark:text-blue-400 border-blue-500/20 hover:bg-blue-500/10"
+                              >
+                                <RotateCcw size={12} className="mr-1" />
+                                Restore
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handlePermanentDelete(t.id);
+                                }}
+                                disabled={deletingId === t.id}
+                                className="h-8 rounded-xl text-[12px] text-red-500 hover:bg-red-500/10 px-2.5"
+                                title="Delete Permanently"
+                              >
+                                <Trash2 size={13} />
+                              </Button>
+                            </div>
+                          </div>
+                        </motion.div>
+                      );
+                    })}
+                </div>
+              )}
+            </motion.div>
+          )}
         </div>
       </div>
 
@@ -922,24 +1167,60 @@ const AdminDashboard: React.FC = () => {
                 </div>
 
                 {/* Actions */}
-                <div className="flex gap-3 pt-4 border-t border-black/5 dark:border-white/10">
-                  <Button
-                    onClick={() => handleDeleteTemplate(selectedTemplate.id)}
-                    disabled={deletingId === selectedTemplate.id}
-                    className="flex-1 bg-red-500/10 text-red-600 hover:bg-red-500/20"
-                  >
-                    {deletingId === selectedTemplate.id ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        Deleting...
-                      </>
-                    ) : (
-                      <>
-                        <Trash2 size={16} />
-                        Delete Template
-                      </>
-                    )}
-                  </Button>
+                <div className="pt-4 border-t border-black/5 dark:border-white/10 space-y-3">
+                  {selectedTemplate.deleted_at ? (
+                    <>
+                      <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-between text-[12px] text-amber-700 dark:text-amber-400">
+                        <span className="font-semibold">In Trash</span>
+                        <span>{getDaysRemainingInTrash(selectedTemplate.deleted_at)} days remaining</span>
+                      </div>
+                      <div className="flex gap-3">
+                        <Button
+                          onClick={() => handleRestoreTemplate(selectedTemplate.id)}
+                          disabled={deletingId === selectedTemplate.id}
+                          className="flex-1 bg-blue-600 hover:bg-blue-700 text-white"
+                        >
+                          {deletingId === selectedTemplate.id ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <>
+                              <RotateCcw size={16} className="mr-1.5" />
+                              Restore Template
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          onClick={() => handlePermanentDelete(selectedTemplate.id)}
+                          disabled={deletingId === selectedTemplate.id}
+                          variant="outline"
+                          className="border-red-500/20 text-red-600 hover:bg-red-500/10"
+                        >
+                          <Trash2 size={16} className="mr-1.5" />
+                          Delete Forever
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <div className="flex gap-3">
+                      <Button
+                        onClick={() => handleDeleteTemplate(selectedTemplate.id)}
+                        disabled={deletingId === selectedTemplate.id}
+                        className="flex-1 bg-red-500/10 text-red-600 hover:bg-red-500/20"
+                      >
+                        {deletingId === selectedTemplate.id ? (
+                          <>
+                            <Loader2 size={16} className="animate-spin" />
+                            Moving to trash...
+                          </>
+                        ) : (
+                          <>
+                            <Trash2 size={16} className="mr-1.5" />
+                            Move to Trash
+                          </>
+                        )}
+                      </Button>
+                    </div>
+                  )}
                 </div>
                 </div>
               </div>

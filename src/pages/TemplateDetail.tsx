@@ -1,22 +1,29 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { getTemplateFullData, incrementTemplateStat } from '@/lib/templates';
 import { supabase } from '@/integrations/supabase/client';
 import { motion } from 'framer-motion';
 import {
   ChevronLeft, Copy, ExternalLink, Loader2, Eye, Download,
   Share2, Calendar, Layers, Clock, Link2, BarChart3,
   ArrowUpRight, Globe2, MousePointerClick, TrendingUp, Image as ImageIcon,
-  Trash2, QrCode, Pencil
+  Trash2, QrCode, Pencil, RotateCcw, AlertTriangle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import {
+  getTemplateFullData,
+  incrementTemplateStat,
+  softDeleteTemplate,
+  restoreTemplate,
+  permanentDeleteTemplate,
+  getDaysRemainingInTrash
+} from '@/lib/templates';
 
 const TemplateDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
-  const { user, loading: authLoading } = useAuth();
+  const { user, loading: authLoading, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const [template, setTemplate] = useState<any>(null);
@@ -85,20 +92,51 @@ const TemplateDetail: React.FC = () => {
     }
   }, [template, generatorUrl]);
 
+  const isOwner = !!(user && template?.user_id === user.id);
+  const canManage = isOwner || isAdmin;
+  const isTrashed = !!template?.deleted_at;
+  const daysRemaining = getDaysRemainingInTrash(template?.deleted_at);
+
   const handleDelete = async () => {
     if (!template?.id) return;
+    if (!confirm('Move this template to trash? It will be removed across the platform and permanently deleted after 30 days.')) return;
     setDeleting(true);
-    const { error } = await supabase.from('templates').delete().eq('id', template.id);
-    if (!error) {
-      toast.success('Template deleted');
-      navigate('/dashboard');
+    const { success, error } = await softDeleteTemplate(template.id);
+    if (success) {
+      toast.success('Template moved to trash');
+      navigate(isAdmin ? '/admin' : '/dashboard');
     } else {
-      toast.error('Failed to delete');
+      toast.error(error || 'Failed to move template to trash');
     }
     setDeleting(false);
   };
 
-  const isOwner = user && template?.user_id === user.id;
+  const handleRestore = async () => {
+    if (!template?.id) return;
+    setDeleting(true);
+    const { success, error } = await restoreTemplate(template.id);
+    if (success) {
+      toast.success('Template restored successfully');
+      setTemplate((prev: any) => ({ ...prev, deleted_at: null }));
+    } else {
+      toast.error(error || 'Failed to restore template');
+    }
+    setDeleting(false);
+  };
+
+  const handlePermanentDelete = async () => {
+    if (!template?.id) return;
+    if (!confirm('Permanently delete this template? This cannot be undone.')) return;
+    setDeleting(true);
+    const { success, error } = await permanentDeleteTemplate(template.id);
+    if (success) {
+      toast.success('Template permanently deleted');
+      navigate(isAdmin ? '/admin' : '/dashboard');
+    } else {
+      toast.error(error || 'Failed to delete template');
+    }
+    setDeleting(false);
+  };
 
   if (loading || authLoading) {
     return (
@@ -111,14 +149,14 @@ const TemplateDetail: React.FC = () => {
     );
   }
 
-  if (!template) {
+  if (!template || (isTrashed && !canManage)) {
     return (
       <div className="h-[100dvh] flex flex-col items-center justify-center bg-[#fafafa] dark:bg-[#000] text-center px-6">
         <div className="w-16 h-16 rounded-2xl bg-red-500/10 flex items-center justify-center mb-4">
           <ImageIcon size={28} className="text-red-500" />
         </div>
         <h1 className="text-[20px] font-bold mb-2 text-[#1d1d1f] dark:text-[#f5f5f7]">Template Not Found</h1>
-        <p className="text-[14px] text-[#86868b] mb-6">This template may have been removed or doesn't exist.</p>
+        <p className="text-[14px] text-[#86868b] mb-6">This template may have been deleted or moved to trash.</p>
         <Link to="/dashboard">
           <Button className="bg-[#0842C7] hover:bg-[#0953D7] text-white rounded-full h-10 px-5 text-[13px] font-semibold">
             Back to Dashboard
@@ -185,6 +223,27 @@ const TemplateDetail: React.FC = () => {
       </header>
 
       <main className="max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-10">
+        {/* Trash Banner if soft-deleted */}
+        {isTrashed && (
+          <div className="mb-6 p-4 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-amber-700 dark:text-amber-400">
+            <div className="flex items-center gap-2.5">
+              <AlertTriangle size={18} className="text-amber-500 shrink-0" />
+              <p className="text-[13px] font-semibold">
+                This template is in the Trash ({daysRemaining} days left before permanent deletion).
+              </p>
+            </div>
+            <Button
+              size="sm"
+              onClick={handleRestore}
+              disabled={deleting}
+              className="bg-blue-600 hover:bg-blue-700 text-white rounded-xl h-8 px-4 text-[12px] font-semibold shrink-0"
+            >
+              <RotateCcw size={13} className="mr-1.5" />
+              Restore Template
+            </Button>
+          </div>
+        )}
+
         {/* HERO — Template preview + name */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
@@ -469,20 +528,54 @@ const TemplateDetail: React.FC = () => {
                 <ArrowUpRight size={14} className="text-[#86868b] group-hover:text-purple-500 transition-colors shrink-0" />
               </button>
 
-              {isOwner && (
-                <button
-                  onClick={handleDelete}
-                  disabled={deleting}
-                  className="w-full flex items-center gap-3 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] hover:border-red-500/20 hover:bg-red-500/[0.02] transition-all active:scale-[0.98] group text-left"
-                >
-                  <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
-                    {deleting ? <Loader2 size={16} className="text-red-500 animate-spin" /> : <Trash2 size={16} className="text-red-500" />}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[13px] font-semibold text-red-500">Delete Template</p>
-                    <p className="text-[11px] text-[#86868b]">This action cannot be undone</p>
-                  </div>
-                </button>
+              {canManage && (
+                <>
+                  {isTrashed ? (
+                    <div className="space-y-2">
+                      <button
+                        onClick={handleRestore}
+                        disabled={deleting}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-blue-500/20 bg-blue-500/[0.04] hover:bg-blue-500/10 transition-all active:scale-[0.98] group text-left"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-blue-500/10 flex items-center justify-center shrink-0">
+                          {deleting ? <Loader2 size={16} className="text-blue-600 animate-spin" /> : <RotateCcw size={16} className="text-blue-600" />}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-blue-600 dark:text-blue-400">Restore Template</p>
+                          <p className="text-[11px] text-[#86868b]">Make active across the platform</p>
+                        </div>
+                      </button>
+
+                      <button
+                        onClick={handlePermanentDelete}
+                        disabled={deleting}
+                        className="w-full flex items-center gap-3 p-3 rounded-xl border border-red-500/20 hover:bg-red-500/10 transition-all active:scale-[0.98] group text-left"
+                      >
+                        <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+                          <Trash2 size={16} className="text-red-500" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[13px] font-semibold text-red-500">Delete Permanently</p>
+                          <p className="text-[11px] text-[#86868b]">Immediately delete forever</p>
+                        </div>
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={handleDelete}
+                      disabled={deleting}
+                      className="w-full flex items-center gap-3 p-3 rounded-xl border border-black/[0.04] dark:border-white/[0.06] hover:border-red-500/20 hover:bg-red-500/[0.02] transition-all active:scale-[0.98] group text-left"
+                    >
+                      <div className="w-9 h-9 rounded-lg bg-red-500/10 flex items-center justify-center shrink-0">
+                        {deleting ? <Loader2 size={16} className="text-red-500 animate-spin" /> : <Trash2 size={16} className="text-red-500" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-[13px] font-semibold text-red-500">Move to Trash</p>
+                        <p className="text-[11px] text-[#86868b]">Kept for 30 days before permanent deletion</p>
+                      </div>
+                    </button>
+                  )}
+                </>
               )}
             </div>
           </div>

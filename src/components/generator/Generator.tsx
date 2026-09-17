@@ -268,12 +268,16 @@ export const Generator: React.FC = () => {
       try {
         const data = await getTemplateBySlug(slug);
         if (data) {
-            setTemplate(data);
-            setElements(data.elements);
-            // Track view
-            incrementTemplateStat(slug, 'views').catch(() => {});
+          if (data.deleted_at) {
+            setError('This design was deleted or moved to trash by the creator or admin.');
+            return;
+          }
+          setTemplate(data);
+          setElements(data.elements);
+          // Track view
+          incrementTemplateStat(slug, 'views').catch(() => {});
         } else {
-            setError('Template not found');
+          setError('Template not found');
         }
       } catch (err) {
         console.error(err);

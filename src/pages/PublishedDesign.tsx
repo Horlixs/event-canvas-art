@@ -15,7 +15,11 @@ const PublishedDesign = () => {
     if (!slug) return;
 
     getTemplateBySlug(slug).then((data) => {
-      setTemplate(data);
+      if (data?.deleted_at) {
+        setTemplate(null);
+      } else {
+        setTemplate(data);
+      }
       setLoading(false);
     });
   }, [slug]);

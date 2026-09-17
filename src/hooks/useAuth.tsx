@@ -15,6 +15,7 @@ interface AuthContextValue {
   updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
   checkEmailProvider: (email: string) => Promise<string | null>;
   needsPasswordReset: boolean;
+  isAdmin: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -24,6 +25,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [needsPasswordReset, setNeedsPasswordReset] = useState(false);
+
+  const adminEmail = (import.meta.env.VITE_ADMIN_EMAIL || 'dhorlixs@gmail.com').toLowerCase();
+  const isAdmin = !!(user?.email && user.email.toLowerCase() === adminEmail);
 
   // Check which auth provider owns an email
   const checkEmailProvider = useCallback(async (email: string): Promise<string | null> => {
@@ -250,6 +254,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updatePassword,
         checkEmailProvider,
         needsPasswordReset,
+        isAdmin,
       }}
     >
       {children}
