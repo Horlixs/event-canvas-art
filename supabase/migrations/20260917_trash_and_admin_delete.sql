@@ -8,34 +8,58 @@ ALTER TABLE public.templates
 -- 2) Create index on deleted_at for fast filtering
 CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON public.templates(deleted_at);
 
--- 3) Helper function: check if currently authenticated user is an admin
-CREATE OR REPLACE FUNCTION public.is_admin()
+-- 3) Helper functions: check user roles and admin privileges
+CREATE OR REPLACE FUNCTION public.has_role(p_uid UUID, p_role TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
-SET search_path = public
+SET search_path = public, auth
 AS $$
 DECLARE
   v_email TEXT;
 BEGIN
-  -- Extract email from JWT claims
-  v_email := NULLIF(current_setting('request.jwt.claim.email', true), '');
-  
-  -- If not in request setting, query auth.users
-  IF v_email IS NULL AND auth.uid() IS NOT NULL THEN
-    SELECT email INTO v_email FROM auth.users WHERE id = auth.uid();
+  IF p_uid IS NULL THEN
+    RETURN FALSE;
   END IF;
 
-  -- Match against admin email (default: dhorlixs@gmail.com)
-  IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
-    RETURN true;
+  IF p_role = 'admin' THEN
+    -- Check auth.users table
+    SELECT email INTO v_email FROM auth.users WHERE id = p_uid;
+    IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
+      RETURN TRUE;
+    END IF;
+
+    -- Also check JWT claim if current user
+    IF p_uid = auth.uid() THEN
+      v_email := NULLIF(current_setting('request.jwt.claim.email', true), '');
+      IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
+        RETURN TRUE;
+      END IF;
+    END IF;
   END IF;
 
-  RETURN false;
+  RETURN FALSE;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.has_role(UUID, TEXT) TO anon, authenticated;
+
+CREATE OR REPLACE FUNCTION public.is_admin(p_uid UUID DEFAULT auth.uid())
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+BEGIN
+  IF p_uid IS NULL THEN
+    RETURN FALSE;
+  END IF;
+  RETURN public.has_role(p_uid, 'admin');
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO anon, authenticated;
 
 -- 4) Update RLS policies on public.templates
 
