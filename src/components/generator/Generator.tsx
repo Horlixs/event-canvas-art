@@ -32,6 +32,7 @@ import { wrapText } from '@/lib/textUtils';
 import { useAuth } from '@/hooks/useAuth';
 import { AuthModal } from '@/components/AuthModal';
 import { useGeneratorState } from '@/hooks/useGeneratorState';
+import { ShapeRenderer } from '@/components/editor/ShapeRenderer';
 
 // --- HELPER: Background Image ---
 const BackgroundImage: React.FC<{ src: string; width: number; height: number }> = ({ src, width, height }) => {
@@ -53,212 +54,6 @@ const BackgroundImage: React.FC<{ src: string; width: number; height: number }> 
       y={(height - imgHeight * ratio) / 2}
     />
   );
-};
-
-// --- HELPER: Shape with User Image Support ---
-const URLImageShape: React.FC<{ 
-  element: CanvasElement; 
-  src?: string; 
-  children?: React.ReactNode 
-}> = ({ element, src, children }) => {
-  const [image] = useImage(src || '', 'anonymous');
-
-  const patternFill = useMemo(() => {
-    if (!image || !src) return null;
-
-    let sw = 0, sh = 0;
-    if (element.type === 'circle' || element.type === 'polygon') {
-      return null; // Don't use pattern fill for circles/polygons
-    } else if ('width' in element && 'height' in element) {
-      sw = element.width;
-      sh = element.height;
-    }
-    if (sw === 0 || sh === 0) return null;
-
-    const scale = Math.max(sw / image.width, sh / image.height);
-    const ox = (image.width * scale - sw) / 2;
-    const oy = (image.height * scale - sh) / 2;
-
-    return {
-      fillPatternImage: image,
-      fillPatternScaleX: scale,
-      fillPatternScaleY: scale,
-      fillPatternOffsetX: ox / scale,
-      fillPatternOffsetY: oy / scale,
-    };
-  }, [image, src, element]);
-
-  // For circles, calculate image scaling and centering
-  const circleImageProps = useMemo(() => {
-    if (!image || !src || element.type !== 'circle') return null;
-
-    const diameter = element.radius * 2;
-    // Use Math.max to cover full circle diameter, clipping will hide overflow
-    const scale = Math.max(diameter / image.width, diameter / image.height);
-    const scaledWidth = image.width * scale;
-    const scaledHeight = image.height * scale;
-
-    return {
-      image,
-      width: scaledWidth,
-      height: scaledHeight,
-      x: -scaledWidth / 2,
-      y: -scaledHeight / 2,
-      scaleX: 1,
-      scaleY: 1,
-    };
-  }, [image, src, element]);
-
-  const shapeFill: any = patternFill || { fill: 'fill' in element ? (element as any).fill : undefined };
-
-  const shapeStroke: any = {
-    stroke: element.stroke || '',
-    strokeWidth: element.strokeWidth || 0,
-  };
-
-  return (
-    <Group x={element.x} y={element.y} rotation={element.rotation} opacity={element.opacity ?? 1}>
-      {children}
-      {element.type === 'rect' && (
-        <Rect
-          width={element.width}
-          height={element.height}
-          offsetX={element.width / 2}
-          offsetY={element.height / 2}
-          cornerRadius={element.cornerRadius}
-          listening={element.isPlaceholder}
-          {...shapeFill}
-          {...shapeStroke}
-        />
-      )}
-      {element.type === 'circle' && (
-        <Group
-          clipFunc={(ctx) => {
-            ctx.beginPath();
-            ctx.arc(0, 0, element.radius, 0, Math.PI * 2);
-            ctx.closePath();
-          }}
-        >
-          {circleImageProps && circleImageProps.image ? (
-            <KonvaImage
-              {...circleImageProps}
-              listening={false}
-            />
-          ) : null}
-          <Circle
-            radius={element.radius}
-            listening={element.isPlaceholder}
-            fill={circleImageProps ? 'transparent' : (shapeFill.fill || 'transparent')}
-            {...shapeStroke}
-          />
-        </Group>
-      )}
-      {element.type === 'polygon' && (() => {
-        const sides = (element as any).sides || 6;
-        const r = element.radius;
-        const points: number[] = [];
-        for (let i = 0; i < sides; i++) {
-          const angle = (Math.PI * 2 * i) / sides - Math.PI / 2;
-          points.push(r * Math.cos(angle), r * Math.sin(angle));
-        }
-        return <Line points={points} closed listening={element.isPlaceholder} {...shapeFill} {...shapeStroke} />;
-      })()}
-      {element.type === 'image' && (
-        <Rect
-          width={element.width}
-          height={element.height}
-          offsetX={element.width / 2}
-          offsetY={element.height / 2}
-          listening={element.isPlaceholder}
-          {...shapeFill}
-        />
-      )}
-    </Group>
-  );
-};
-
-// --- HELPER: Watermark Text ---
-const WatermarkText: React.FC<{ width: number; height: number }> = ({ width, height }) => {
-  const fontSize = Math.max(8, Math.round(width * 0.018));
-  const padding = Math.round(width * 0.024);
-  const text = 'Made with Dummmy.me';
-  const estimatedWidth = Math.round(text.length * fontSize * 0.55);
-  return (
-    <Text
-      text={text}
-      fontSize={fontSize}
-      fontFamily="Inter, Arial, sans-serif"
-      fontStyle="600"
-      fill="rgba(255,255,255,0.88)"
-      x={width - estimatedWidth - padding}
-      y={height - fontSize - padding}
-      opacity={0.85}
-      shadowColor="rgba(0,0,0,0.4)"
-      shadowBlur={4}
-      shadowOffsetX={1}
-      shadowOffsetY={1}
-      listening={false}
-    />
-  );
-};
-
-// --- HELPER: Main Shape Renderer ---
-const RenderShape: React.FC<{ element: CanvasElement; userImage?: string }> = ({ element, userImage }) => {
-  if (element.type === 'text') {
-    return (
-      <Group
-        x={element.x}
-        y={element.y}
-        rotation={element.rotation}
-        opacity={element.opacity ?? 1}
-      >
-        <Text
-          text={wrapText(
-            element.text,
-            element.width,
-            element.fontSize,
-            element.fontFamily,
-            element.fontWeight || 400,
-            element.fontStyle || 'normal',
-          )}
-          width={element.width}
-          offsetX={element.width / 2}
-          fontSize={element.fontSize}
-          fontFamily={element.fontFamily}
-          fontStyle={`${element.fontWeight || 400} ${element.fontStyle || 'normal'}`}
-          fill={element.fill}
-          stroke={element.stroke || ''}
-          strokeWidth={element.strokeWidth || 0}
-          align={element.textAlign || 'center'}
-          wrap="none"
-        />
-      </Group>
-    );
-  }
-
-  const strokes = (
-    <>
-      {element.strokes?.map((s, i) => {
-        if (element.type === 'rect') {
-          return (
-            <Rect
-              key={i}
-              width={element.width + s.width}
-              height={element.height + s.width}
-              offsetX={(element.width + s.width) / 2}
-              offsetY={(element.height + s.width) / 2}
-              fill={s.color}
-              listening={false}
-            />
-          );
-        }
-        if (element.type === 'circle') return <Circle key={i} radius={element.radius + s.width / 2} fill={s.color} listening={false} />;
-        return null;
-      })}
-    </>
-  );
-
-  return <URLImageShape element={element} src={userImage}>{strokes}</URLImageShape>;
 };
 
 // --- LOADING SKELETON ---
@@ -731,10 +526,14 @@ export const Generator: React.FC = () => {
                       )}
 
                       {fontsLoaded && elements.map((el) => (
-                        <RenderShape
+                        <ShapeRenderer
                           key={el.id}
                           element={el}
+                          isSelected={false}
+                          onSelect={() => {}}
+                          onChange={() => {}}
                           userImage={el.isPlaceholder ? userImages[el.id] : undefined}
+                          isGeneratorMode={true}
                         />
                       ))}
                     </Group>

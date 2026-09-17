@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
-import { X, ChevronDown, Check } from "lucide-react";
+import { X, ChevronDown, Check, Italic, Underline, Strikethrough, AlignLeft, AlignCenter, AlignRight, Link2, Unlink2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ColorPicker } from "./ColorPicker";
 
@@ -73,8 +73,8 @@ const ControlRow = ({ label, children }: { label: string; children: React.ReactN
   </div>
 );
 
-const CompactInput = ({ value, onChange, unit }: { value: any; onChange: (v: string) => void; unit?: string }) => (
-  <div className="relative flex items-center bg-black/[0.03] dark:bg-white/[0.04] rounded-lg border border-black/[0.04] dark:border-white/[0.04] px-3 py-1.5 focus-within:ring-2 ring-blue-500/30 transition-all">
+const CompactInput = ({ value, onChange, unit, className }: { value: any; onChange: (v: string) => void; unit?: string; className?: string }) => (
+  <div className={`relative flex items-center bg-black/[0.03] dark:bg-white/[0.04] rounded-lg border border-black/[0.04] dark:border-white/[0.04] px-3 py-1.5 focus-within:ring-2 ring-blue-500/30 transition-all ${className || ''}`}>
     <input
       className="bg-transparent border-none text-[12px] font-mono w-14 text-right outline-none text-[#1d1d1f] dark:text-[#f5f5f7]"
       value={value}
@@ -83,6 +83,80 @@ const CompactInput = ({ value, onChange, unit }: { value: any; onChange: (v: str
     {unit && <span className="text-[9px] text-[#86868b]/60 ml-1 font-medium">{unit}</span>}
   </div>
 );
+
+// ── Corner Radius Control ────────────────────────────────────────────────
+// Small inline input with a corner label for the 2×2 grid
+const CornerInput = ({ label, value, onChange }: { label: string; value: number; onChange: (v: string) => void }) => (
+  <div className="flex flex-col items-center gap-1">
+    <span className="text-[8px] font-bold uppercase tracking-wider text-[#86868b]/70">{label}</span>
+    <div className="relative flex items-center bg-black/[0.03] dark:bg-white/[0.04] rounded-lg border border-black/[0.04] dark:border-white/[0.04] px-2 py-1.5 focus-within:ring-2 ring-blue-500/30 transition-all w-full">
+      <input
+        className="bg-transparent border-none text-[11px] font-mono w-full text-center outline-none text-[#1d1d1f] dark:text-[#f5f5f7]"
+        value={value}
+        onChange={e => onChange(e.target.value)}
+      />
+    </div>
+  </div>
+);
+
+const CornerRadiusControl = ({ element, onUpdate }: { element: any; onUpdate: (updates: any) => void }) => {
+  const radii = element.cornerRadii;
+  const isIndividual = !!radii;
+
+  const handleUnlink = () => {
+    // Switch to individual – seed all four from current uniform value
+    const r = element.cornerRadius || 0;
+    onUpdate({ cornerRadii: { tl: r, tr: r, br: r, bl: r } });
+  };
+
+  const handleLink = () => {
+    // Switch back to uniform – use the max of all four values
+    const max = Math.max(radii.tl, radii.tr, radii.br, radii.bl);
+    onUpdate({ cornerRadii: undefined, cornerRadius: max });
+  };
+
+  const updateCorner = (key: string, val: string) =>
+    onUpdate({ cornerRadii: { ...radii, [key]: Math.max(0, Number(val)) } });
+
+  return (
+    <div className="space-y-2">
+      {/* Header row */}
+      <div className="flex items-center justify-between">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[#86868b]">Corners</span>
+        <button
+          onClick={isIndividual ? handleLink : handleUnlink}
+          title={isIndividual ? 'Link corners (uniform)' : 'Unlink corners (individual)'}
+          className={`p-1.5 rounded-md border transition-all ${
+            isIndividual
+              ? 'border-blue-500/30 bg-blue-500/10 text-blue-500'
+              : 'border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]'
+          }`}
+        >
+          {isIndividual ? <Unlink2 size={11} /> : <Link2 size={11} />}
+        </button>
+      </div>
+
+      {isIndividual ? (
+        /* 2×2 grid — corners visually match their position on the shape */
+        <div className="grid grid-cols-2 gap-1.5">
+          <CornerInput label="TL" value={radii.tl} onChange={v => updateCorner('tl', v)} />
+          <CornerInput label="TR" value={radii.tr} onChange={v => updateCorner('tr', v)} />
+          <CornerInput label="BL" value={radii.bl} onChange={v => updateCorner('bl', v)} />
+          <CornerInput label="BR" value={radii.br} onChange={v => updateCorner('br', v)} />
+        </div>
+      ) : (
+        /* Single uniform value */
+        <div className="flex justify-end">
+          <CompactInput
+            value={element.cornerRadius ?? 0}
+            onChange={r => onUpdate({ cornerRadius: Math.max(0, Number(r)) })}
+            unit="px"
+          />
+        </div>
+      )}
+    </div>
+  );
+};
 
 // ── Custom Font Family Dropdown ──────────────────────────────────────────
 const FontFamilyDropdown = ({ value, onChange }: { value: string; onChange: (font: string) => void }) => {
@@ -227,16 +301,43 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
 
           {/* Corner radius */}
           {'cornerRadius' in element && (
-            <ControlRow label="Corners"><CompactInput value={element.cornerRadius} onChange={(r) => onUpdate({ cornerRadius: Number(r) })} unit="px" /></ControlRow>
+            <div className="py-1">
+              <CornerRadiusControl element={element} onUpdate={onUpdate} />
+            </div>
           )}
 
-          {/* Stroke */}
+            {/* Stroke */}
           <div className="space-y-2 pt-2">
             <h4 className="text-[10px] font-bold uppercase tracking-[0.15em] text-[#86868b]">Stroke</h4>
             <ControlRow label="Color">
               <ColorPicker value={element.stroke || '#000000'} onChange={(color) => onUpdate({ stroke: color })} />
             </ControlRow>
             <ControlRow label="Width"><CompactInput value={element.strokeWidth ?? 0} onChange={(w) => onUpdate({ strokeWidth: Number(w) })} unit="px" /></ControlRow>
+
+            {/* Stroke Position */}
+            {(element.strokeWidth > 0 && element.stroke) && (
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-medium text-[#86868b] block">Position</span>
+                <div className="flex rounded-lg overflow-hidden border border-black/[0.06] dark:border-white/[0.06] bg-black/[0.02] dark:bg-white/[0.02]">
+                  {(['inside', 'center', 'outside'] as const).map((pos, i) => (
+                    <button
+                      key={pos}
+                      onClick={() => onUpdate({ strokePosition: pos })}
+                      className={cn(
+                        "flex-1 py-1.5 text-[10px] font-semibold capitalize transition-all",
+                        i !== 0 && "border-l border-black/[0.06] dark:border-white/[0.06]",
+                        (element.strokePosition || 'center') === pos
+                          ? "bg-blue-500/10 text-blue-600 dark:text-blue-400"
+                          : "text-[#86868b] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                      )}
+                    >
+                      {pos === 'inside' ? 'Front' : pos === 'center' ? 'Center' : 'Behind'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {(element.strokeWidth > 0 && element.stroke) && (
               <button
                 onClick={() => onUpdate({ stroke: '', strokeWidth: 0 })}
@@ -296,20 +397,89 @@ export const PropertiesPanel = ({ element, onUpdate, onClose }: any) => {
                 </div>
               )}
 
+              {/* Font style toggles: Italic, Underline, Strikethrough */}
+              <div>
+                <span className="text-[10px] font-medium text-[#86868b] block mb-1.5">Style</span>
+                <div className="flex gap-1">
+                  <button
+                    id="btn-italic"
+                    onClick={() => onUpdate({ fontStyle: element.fontStyle === 'italic' ? 'normal' : 'italic' })}
+                    title="Italic"
+                    className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-md border text-[12px] font-semibold transition-all",
+                      element.fontStyle === 'italic'
+                        ? "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
+                        : "border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <Italic size={13} />
+                  </button>
+                  <button
+                    id="btn-underline"
+                    onClick={() => {
+                      const cur = element.textDecoration || 'none';
+                      const hasU = cur.includes('underline');
+                      const hasS = cur.includes('line-through');
+                      const next = hasU
+                        ? (hasS ? 'line-through' : 'none')
+                        : (hasS ? 'underline line-through' : 'underline');
+                      onUpdate({ textDecoration: next });
+                    }}
+                    title="Underline"
+                    className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-md border text-[12px] font-semibold transition-all",
+                      (element.textDecoration || '').includes('underline')
+                        ? "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
+                        : "border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <Underline size={13} />
+                  </button>
+                  <button
+                    id="btn-strikethrough"
+                    onClick={() => {
+                      const cur = element.textDecoration || 'none';
+                      const hasU = cur.includes('underline');
+                      const hasS = cur.includes('line-through');
+                      const next = hasS
+                        ? (hasU ? 'underline' : 'none')
+                        : (hasU ? 'underline line-through' : 'line-through');
+                      onUpdate({ textDecoration: next });
+                    }}
+                    title="Strikethrough"
+                    className={cn(
+                      "flex items-center justify-center w-8 h-8 rounded-md border text-[12px] font-semibold transition-all",
+                      (element.textDecoration || '').includes('line-through')
+                        ? "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
+                        : "border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:bg-black/[0.04] dark:hover:bg-white/[0.04]"
+                    )}
+                  >
+                    <Strikethrough size={13} />
+                  </button>
+                </div>
+              </div>
+
               {/* Alignment */}
               <div>
                 <span className="text-[10px] font-medium text-[#86868b] block mb-1.5">Align</span>
                 <div className="flex gap-1">
-                  {(['left', 'center', 'right'] as const).map(align => (
+                  {([
+                    { val: 'left', Icon: AlignLeft },
+                    { val: 'center', Icon: AlignCenter },
+                    { val: 'right', Icon: AlignRight },
+                  ] as const).map(({ val, Icon }) => (
                     <button
-                      key={align}
-                      onClick={() => onUpdate({ textAlign: align })}
+                      key={val}
+                      onClick={() => onUpdate({ textAlign: val })}
+                      title={val.charAt(0).toUpperCase() + val.slice(1)}
                       className={cn(
-                        "flex-1 py-1.5 rounded-md text-[10px] font-bold uppercase tracking-wider transition-all",
-                        (element.textAlign || 'center') === align ? "bg-blue-500/10 text-blue-600 dark:text-blue-400" : "text-[#86868b] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
+                        "flex-1 flex items-center justify-center py-1.5 rounded-md border text-[10px] font-bold uppercase tracking-wider transition-all",
+                        (element.textAlign || 'center') === val
+                          ? "bg-blue-500/10 border-blue-500/20 text-blue-600 dark:text-blue-400"
+                          : "border-black/[0.06] dark:border-white/[0.06] text-[#86868b] hover:bg-black/[0.03] dark:hover:bg-white/[0.03]"
                       )}
                     >
-                      {align}
+                      <Icon size={13} />
                     </button>
                   ))}
                 </div>

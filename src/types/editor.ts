@@ -20,6 +20,7 @@ export interface BaseElement {
   isPlaceholder: boolean;
   stroke?: string;
   strokeWidth?: number;
+  strokePosition?: StrokePosition; // 'inside' | 'center' | 'outside'
   strokes?: StrokeLayer[];
   
   // Image placeholder data
@@ -36,11 +37,19 @@ export interface ImageElement extends BaseElement {
   src: string;
 }
 
+export interface CornerRadii {
+  tl: number; // top-left
+  tr: number; // top-right
+  br: number; // bottom-right
+  bl: number; // bottom-left
+}
+
 export interface RectElement extends BaseElement {
   type: 'rect';
   width: number;
   height: number;
-  cornerRadius: number;
+  cornerRadius: number;         // uniform – used when cornerRadii is absent
+  cornerRadii?: CornerRadii;    // per-corner override; takes precedence over cornerRadius
   fill: string;
 }
 
@@ -64,7 +73,8 @@ export interface TextElement extends BaseElement {
   fontFamily: string;
   fontStyle: 'normal' | 'italic';
   fontWeight: string | number; // e.g., '400', '700', 'bold'
-  textAlign: 'left' | 'center' | 'right'; // Add this
+  textDecoration?: 'none' | 'underline' | 'line-through' | 'underline line-through';
+  textAlign: 'left' | 'center' | 'right';
   fill: string;
   width: number;
 }
