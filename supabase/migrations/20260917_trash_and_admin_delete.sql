@@ -9,7 +9,12 @@ ALTER TABLE public.templates
 CREATE INDEX IF NOT EXISTS idx_templates_deleted_at ON public.templates(deleted_at);
 
 -- 3) Helper functions: check user roles and admin privileges
-CREATE OR REPLACE FUNCTION public.has_role(p_uid UUID, p_role TEXT)
+DROP FUNCTION IF EXISTS public.has_role(UUID, TEXT) CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin(UUID) CASCADE;
+DROP FUNCTION IF EXISTS public.is_admin() CASCADE;
+
+-- 1-arg is_admin(UUID)
+CREATE OR REPLACE FUNCTION public.is_admin(p_uid UUID)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
@@ -22,44 +27,64 @@ BEGIN
     RETURN FALSE;
   END IF;
 
-  IF p_role = 'admin' THEN
-    -- Check auth.users table
-    SELECT email INTO v_email FROM auth.users WHERE id = p_uid;
-    IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
-      RETURN TRUE;
-    END IF;
-
-    -- Also check JWT claim if current user
-    IF p_uid = auth.uid() THEN
-      v_email := NULLIF(current_setting('request.jwt.claim.email', true), '');
-      IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
-        RETURN TRUE;
-      END IF;
-    END IF;
+  SELECT email INTO v_email FROM auth.users WHERE id = p_uid;
+  IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
+    RETURN TRUE;
   END IF;
 
   RETURN FALSE;
 END;
 $$;
 
-GRANT EXECUTE ON FUNCTION public.has_role(UUID, TEXT) TO anon, authenticated;
+-- 0-arg is_admin() for current session
+CREATE OR REPLACE FUNCTION public.is_admin()
+RETURNS BOOLEAN
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public, auth
+AS $$
+DECLARE
+  v_uid UUID := auth.uid();
+  v_email TEXT;
+BEGIN
+  IF v_uid IS NULL THEN
+    RETURN FALSE;
+  END IF;
 
-CREATE OR REPLACE FUNCTION public.is_admin(p_uid UUID DEFAULT auth.uid())
+  -- Check auth.users
+  SELECT email INTO v_email FROM auth.users WHERE id = v_uid;
+  IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
+    RETURN TRUE;
+  END IF;
+
+  -- Check JWT claim
+  v_email := NULLIF(current_setting('request.jwt.claim.email', true), '');
+  IF v_email IS NOT NULL AND LOWER(v_email) = LOWER('dhorlixs@gmail.com') THEN
+    RETURN TRUE;
+  END IF;
+
+  RETURN FALSE;
+END;
+$$;
+
+-- has_role(UUID, TEXT)
+CREATE OR REPLACE FUNCTION public.has_role(p_uid UUID, p_role TEXT)
 RETURNS BOOLEAN
 LANGUAGE plpgsql
 SECURITY DEFINER
 SET search_path = public, auth
 AS $$
 BEGIN
-  IF p_uid IS NULL THEN
-    RETURN FALSE;
+  IF p_role = 'admin' THEN
+    RETURN public.is_admin(p_uid);
   END IF;
-  RETURN public.has_role(p_uid, 'admin');
+  RETURN FALSE;
 END;
 $$;
 
 GRANT EXECUTE ON FUNCTION public.is_admin() TO anon, authenticated;
 GRANT EXECUTE ON FUNCTION public.is_admin(UUID) TO anon, authenticated;
+GRANT EXECUTE ON FUNCTION public.has_role(UUID, TEXT) TO anon, authenticated;
 
 -- 4) Update RLS policies on public.templates
 
